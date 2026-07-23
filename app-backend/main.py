@@ -101,10 +101,7 @@ async def signup(request: Request, user: UserCreate):
     }
     result = await users_collection.insert_one(new_user)
     return {"message": "User created", "id": str(result.inserted_id)}
-dfasfasdfasdfasdf
 
-
-gfsdgsdfgsdfjkghskdfjgh
 @app.post("/auth/login")
 @limiter.limit("5/minute")
 async def login(request: Request, user: UserLogin):
