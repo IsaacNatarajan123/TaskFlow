@@ -41,3 +41,8 @@ async def delete_client(client_id: str):
         return {"error": "Cannot delete a client with existing tasks. Mark it inactive instead."}
     await clients_collection.delete_one({"_id": ObjectId(client_id)})
     return {"message": "Client deleted"}
+
+@router.patch("/{client_id}/deactivate")
+async def deactivate_client(client_id: str):
+    await clients_collection.update_one({"_id": ObjectId(client_id)}, {"$set": {"status": "inactive"}})
+    return {"message": "Client deactivated"}

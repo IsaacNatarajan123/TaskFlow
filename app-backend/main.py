@@ -9,11 +9,13 @@ from fastapi.responses import JSONResponse
 import logging
 import time
 from prometheus_fastapi_instrumentator import Instrumentator
-from routers import clients, task_categories, tasks, time_entries, submissions, reports
+from routers import clients, departments, tasks, time_entries, submissions, reports
 from bson import ObjectId
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+import asyncio
+from routers.submissions import run_escalation_check
 import os
 
 app = FastAPI(title="FastAPI")
@@ -41,7 +43,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 Instrumentator().instrument(app).expose(app)
 app.include_router(clients.router)
-app.include_router(task_categories.router)
+app.include_router(departments.router)
 app.include_router(tasks.router)
 app.include_router(time_entries.router)
 app.include_router(submissions.router)
@@ -99,7 +101,10 @@ async def signup(request: Request, user: UserCreate):
     }
     result = await users_collection.insert_one(new_user)
     return {"message": "User created", "id": str(result.inserted_id)}
+dfasfasdfasdfasdf
 
+
+gfsdgsdfgsdfjkghskdfjgh
 @app.post("/auth/login")
 @limiter.limit("5/minute")
 async def login(request: Request, user: UserLogin):
@@ -188,7 +193,7 @@ async def get_me(current_user: str = Depends(get_current_user)):
     if manager_id and ObjectId.is_valid(manager_id):
         manager = await users_collection.find_one({"_id": ObjectId(manager_id)})
         manager_name = manager["name"] if manager else None
-    return {"name": user["name"], "email": user["email"], "manager_name": manager_name}
+    return {"name": user["name"], "email": user["email"], "manager_name": manager_name, "designation": user.get("designation")}
 
 @app.get("/users")
 async def list_users():
@@ -207,3 +212,20 @@ class SetManager(BaseModel):
 async def set_manager(user_id: str, req: SetManager):
     await users_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"manager_id": req.manager_id}})
     return {"message": "Manager set"}
+
+class SetDesignation(BaseModel):
+    designation: str
+
+@app.patch("/users/{user_id}/set-designation")
+async def set_designation(user_id: str, req: SetDesignation):
+    await users_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"designation": req.designation}})
+    return {"message": "Designation set"}
+
+async def escalation_loop():
+    while True:
+        await run_escalation_check()
+        await asyncio.sleep(86400)  # 24 hours
+
+@app.on_event("startup")
+async def start_escalation_scheduler():
+    asyncio.create_task(escalation_loop())

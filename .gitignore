@@ -2,7 +2,6 @@
 app-backend/venv/
 app-backend/.env
 app-backend/*.pyc
-app-backend/cleanup*.py
 app-frontend/node_modules/
 app-frontend/dist/
 .DS_Store

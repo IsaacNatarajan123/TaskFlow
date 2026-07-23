@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Send } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, Upload, Download } from "lucide-react";
 import { T, fontDisplay, cardStyle, btnPrimary, Toast } from "../theme";
 import Layout from "../components/Layout";
 
@@ -34,10 +34,12 @@ const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 function LogTime() {
   const [weekStart, setWeekStart] = useState(getMonday(new Date()));
   const [tasks, setTasks] = useState([]);
-  const [entries, setEntries] = useState({}); // key: `${taskId}_${date}` -> hours
+  const [entries, setEntries] = useState({});
   const [submission, setSubmission] = useState(null);
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState("success");
+  const [uploadResult, setUploadResult] = useState(null);
+  const [errorCells, setErrorCells] = useState({});
   const navigate = useNavigate();
   const userId = getUserId();
   const token = localStorage.getItem("token");
@@ -62,8 +64,17 @@ function LogTime() {
   }, [weekStartStr]);
 
   const load = async () => {
-    const taskRes = await axios.get("http://localhost:8000/tasks");
-    const myTasks = taskRes.data.filter(t => t.created_by === userId && t.status !== "closed");
+    const [taskRes, clientRes, deptRes] = await Promise.all([
+      axios.get("http://localhost:8000/tasks"),
+      axios.get("http://localhost:8000/clients"),
+      axios.get("http://localhost:8000/departments"),
+    ]);
+    const activeClientIds = new Set(clientRes.data.filter(c => c.status === "active").map(c => c._id));
+    const activeDeptIds = new Set(deptRes.data.filter(d => d.status === "active").map(d => d._id));
+    const myTasks = taskRes.data.filter(t =>
+      t.created_by === userId && t.status !== "closed" &&
+      activeClientIds.has(t.client_id) && activeDeptIds.has(t.department_id)
+    );
     setTasks(myTasks);
 
     const entriesRes = await axios.get(`http://localhost:8000/time-entries?week_start=${weekStartStr}`, { headers });
@@ -76,8 +87,6 @@ function LogTime() {
     setSubmission(thisWeek || null);
   };
 
-  const isLocked = submission && (submission.status === "submitted" || submission.status === "approved");
-
   const getHours = (taskId, date) => entries[`${taskId}_${date}`]?.hours ?? "";
 
   const handleChange = (taskId, date, value) => {
@@ -85,18 +94,28 @@ function LogTime() {
   };
 
   const handleBlur = async (taskId, date, value) => {
-    if (value === "" || isNaN(value)) return;
+    const cellKey = `${taskId}_${date}`;
+    if (value === "" || isNaN(value)) {
+      setErrorCells(prev => { const next = { ...prev }; delete next[cellKey]; return next; });
+      try {
+        await axios.delete(`http://localhost:8000/time-entries/${taskId}/${date}`, { headers });
+      } catch {}
+      return;
+    }
     const hours = parseFloat(value);
     try {
       const res = await axios.post("http://localhost:8000/time-entries",
         { task_id: taskId, date, hours }, { headers });
       if (res.data.error) {
         showToast(res.data.error, "error");
+        setErrorCells(prev => ({ ...prev, [cellKey]: res.data.error }));
         load();
         return;
       }
+      setErrorCells(prev => { const next = { ...prev }; delete next[cellKey]; return next; });
     } catch (err) {
       showToast("Could not save entry", "error");
+      setErrorCells(prev => ({ ...prev, [cellKey]: "Could not save" }));
     }
   };
 
@@ -117,6 +136,38 @@ function LogTime() {
     }
     showToast(submission?.status === "returned" ? "Week resubmitted!" : "Week submitted!", "success");
     load();
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("week_start", weekStartStr);
+    try {
+      const res = await axios.post("http://localhost:8000/time-entries/bulk-upload", formData, {
+        headers: { ...headers, "Content-Type": "multipart/form-data" },
+      });
+      setUploadResult(res.data);
+      showToast(`${res.data.saved} entries saved, ${res.data.skipped.length} skipped`, res.data.skipped.length > 0 ? "error" : "success");
+      load();
+    } catch {
+      showToast("Upload failed", "error");
+    }
+    e.target.value = "";
+  };
+
+  const handleDownloadTemplate = async () => {
+    const res = await axios.get(`http://localhost:8000/time-entries/download-template?week_start=${weekStartStr}`, {
+      headers, responseType: "blob",
+    });
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `timesheet_${weekStartStr}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   const changeWeek = (delta) => {
@@ -162,7 +213,23 @@ function LogTime() {
           <button onClick={() => changeWeek(1)} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, width: 32, height: 32, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <ChevronRight size={16} />
           </button>
+          <button onClick={handleDownloadTemplate} style={{ ...btnPrimary, width: "auto", padding: "8px 14px", fontSize: 12.5, display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+            <Download size={14} /> Download Template
+          </button>
+          <label style={{ ...btnPrimary, width: "auto", padding: "8px 14px", fontSize: 12.5, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+            <Upload size={14} /> Upload
+            <input type="file" accept=".xlsx,.csv" onChange={handleFileUpload} style={{ display: "none" }} />
+          </label>
         </div>
+
+        {uploadResult && uploadResult.skipped.length > 0 && (
+          <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: 10, padding: "10px 14px", marginBottom: 16 }}>
+            <p style={{ margin: "0 0 6px", fontSize: 12.5, fontWeight: 700, color: "#991B1B" }}>{uploadResult.skipped.length} row(s) skipped:</p>
+            {uploadResult.skipped.map((s, i) => (
+              <p key={i} style={{ margin: 0, fontSize: 11.5, color: "#991B1B" }}>Row {s.row}: {s.reason}</p>
+            ))}
+          </div>
+        )}
 
         {tasks.length === 0 ? (
           <div style={{ ...cardStyle, textAlign: "center", padding: 36 }}>
@@ -189,15 +256,17 @@ function LogTime() {
                     {days.map((d, i) => (
                       <td key={i} style={{ padding: "6px", textAlign: "center" }}>
                         <input
-                          type="number" min="0" max="24" step="0.5"
+                          type="number" min="0" max="10" step="0.5"
                           value={getHours(t._id, fmt(d))}
-                          disabled={isLocked}
                           onChange={e => handleChange(t._id, fmt(d), e.target.value)}
                           onBlur={e => handleBlur(t._id, fmt(d), e.target.value)}
+                          title={errorCells[`${t._id}_${fmt(d)}`] || ""}
                           style={{
                             width: 44, padding: "6px 4px", textAlign: "center", fontSize: 13,
-                            border: `1.5px solid ${T.border}`, borderRadius: 6,
-                            background: isLocked ? T.bg : "#fff", color: T.textPrimary,
+                            border: errorCells[`${t._id}_${fmt(d)}`] ? `1.5px solid ${T.coral}` : `1.5px solid ${T.border}`,
+                            borderRadius: 6,
+                            background: errorCells[`${t._id}_${fmt(d)}`] ? "#FEF2F2" : "#fff",
+                            color: T.textPrimary,
                           }}
                         />
                       </td>
@@ -210,7 +279,7 @@ function LogTime() {
                 <tr style={{ borderTop: `2px solid ${T.border}`, background: T.bg }}>
                   <td style={{ padding: "10px 14px", fontSize: 12.5, fontWeight: 700, color: T.textSecondary }}>Daily Total</td>
                   {days.map((d, i) => (
-                    <td key={i} style={{ padding: "10px 6px", textAlign: "center", fontSize: 12.5, fontWeight: 700, color: dailyTotal(fmt(d)) > 12 ? T.amber : T.textSecondary }}>
+                    <td key={i} style={{ padding: "10px 6px", textAlign: "center", fontSize: 12.5, fontWeight: 700, color: T.textSecondary }}>
                       {dailyTotal(fmt(d)) || 0}
                     </td>
                   ))}
@@ -221,9 +290,9 @@ function LogTime() {
           </div>
         )}
 
-        {!isLocked && tasks.length > 0 && (
+        {tasks.length > 0 && (
           <button onClick={handleSubmitWeek} style={{ ...btnPrimary, width: "auto", padding: "11px 22px", marginTop: 20, display: "flex", alignItems: "center", gap: 8 }}>
-            <Send size={15} /> {submission?.status === "returned" ? "Resubmit Week" : "Submit Week"}
+            <Send size={15} /> {submission ? "Resubmit Week" : "Submit Week"}
           </button>
         )}
       </div>

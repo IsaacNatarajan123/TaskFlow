@@ -21,7 +21,7 @@ const STATUS_META = {
 function MyTasks() {
   const [tasks, setTasks] = useState([]);
   const [clients, setClients] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [search, setSearch] = useState("");
   const [filterClient, setFilterClient] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -36,7 +36,7 @@ function MyTasks() {
   const headers = { authorization: `Bearer ${token}` };
 
   const [form, setForm] = useState({
-    title: "", description: "", client_id: "", category_id: "",
+    title: "", description: "", client_id: "", department_id: "",
     priority: "Medium", start_date: "", deadline: "", status: "open",
   });
 
@@ -52,22 +52,32 @@ function MyTasks() {
   }, []);
 
   const loadAll = async () => {
-    const [taskRes, clientRes, catRes] = await Promise.all([
+    const [taskRes, clientRes, deptRes] = await Promise.all([
       axios.get("http://localhost:8000/tasks"),
       axios.get("http://localhost:8000/clients"),
-      axios.get("http://localhost:8000/task_categories"),
+      axios.get("http://localhost:8000/departments"),
     ]);
     setTasks(taskRes.data.filter(t => t.created_by === userId));
     setClients(clientRes.data);
-    setCategories(catRes.data);
+    setDepartments(deptRes.data);
   };
 
   const clientName = (id) => clients.find(c => c._id === id)?.client_name || "—";
-  const categoryName = (id) => categories.find(c => c._id === id)?.category_name || "—";
+  const departmentName = (id) => departments.find(d => d._id === id)?.department_name || "—";
+
+  const deadlineBadge = (deadline, status) => {
+    if (!deadline || status === "closed") return null;
+    const today = new Date().toISOString().split("T")[0];
+    const daysLeft = Math.ceil((new Date(deadline) - new Date(today)) / (1000 * 60 * 60 * 24));
+    if (daysLeft < 0) return { label: "Overdue", color: T.coral, bg: "#FEE2E2" };
+    if (daysLeft === 0) return { label: "Due today", color: "#EA580C", bg: "#FFEDD5" };
+    if (daysLeft <= 3) return { label: `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`, color: "#EA580C", bg: "#FFEDD5" };
+    return null;
+  };
 
   const openCreate = () => {
     setEditingTask(null);
-    setForm({ title: "", description: "", client_id: "", category_id: "", priority: "Medium", start_date: "", deadline: "", status: "open" });
+    setForm({ title: "", description: "", client_id: "", department_id: "", priority: "Medium", start_date: "", deadline: "", status: "open" });
     setShowModal(true);
   };
 
@@ -75,18 +85,18 @@ function MyTasks() {
     setEditingTask(task);
     setForm({
       title: task.title, description: task.description || "",
-      client_id: task.client_id, category_id: task.category_id,
+      client_id: task.client_id, department_id: task.department_id,
       priority: task.priority, start_date: task.start_date, deadline: task.deadline, status: task.status,
     });
     setShowModal(true);
   };
 
   const handleSave = async () => {
-    if (!form.title || !form.client_id || !form.category_id || !form.start_date || !form.deadline) {
+    if (!form.title || !form.client_id || !form.department_id) {
       showToast("Please fill all required fields", "error");
       return;
     }
-    if (form.deadline < form.start_date) {
+    if (form.start_date && form.deadline && form.deadline < form.start_date) {
       showToast("Deadline cannot be before start date", "error");
       return;
     }
@@ -149,7 +159,7 @@ function MyTasks() {
           </div>
           <select value={filterClient} onChange={e => setFilterClient(e.target.value)} style={{ ...inputStyle, width: 160 }}>
             <option value="">All Clients</option>
-            {clients.map(c => <option key={c._id} value={c._id}>{c.client_name}</option>)}
+            {clients.filter(c => c.status === "active").map(c => <option key={c._id} value={c._id}>{c.client_name}</option>)}
           </select>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...inputStyle, width: 150 }}>
             <option value="">All Status</option>
@@ -174,12 +184,27 @@ function MyTasks() {
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                         <p style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: T.textPrimary }}>{t.title}</p>
                         <span style={{ fontSize: 10.5, fontWeight: 700, color: meta.color, background: meta.bg, padding: "2px 8px", borderRadius: 20 }}>{meta.label}</span>
+                        {(() => {
+                          const badge = deadlineBadge(t.deadline, t.status);
+                          return badge ? (
+                            <span style={{ fontSize: 10.5, fontWeight: 700, color: badge.color, background: badge.bg, padding: "2px 8px", borderRadius: 20 }}>{badge.label}</span>
+                          ) : null;
+                        })()}
                       </div>
                       <p style={{ margin: 0, fontSize: 12, color: T.textMuted }}>
-                        {clientName(t.client_id)} · {categoryName(t.category_id)} · {t.priority} priority
+                        {clientName(t.client_id)} · {departmentName(t.department_id)} · {t.priority} priority
                       </p>
+                      {clients.find(c => c._id === t.client_id)?.status === "inactive" && (
+                        <p style={{ margin: "4px 0 0", fontSize: 11, color: T.coral, fontWeight: 600 }}>
+                          ⚠ Client "{clientName(t.client_id)}" has been deactivated — no new hours can be logged
+                        </p>
+                      )}
+                      {departments.find(d => d._id === t.department_id)?.status === "inactive" && (
+                        <p style={{ margin: "4px 0 0", fontSize: 11, color: T.coral, fontWeight: 600 }}>
+                          ⚠ Department "{departmentName(t.department_id)}" has been deactivated — no new hours can be logged
+                        </p>
+                      )}
                     </div>
-
                     {confirmDeleteId === t._id ? (
                       <div style={{ display: "flex", gap: 6 }}>
                         <button onClick={() => setConfirmDeleteId(null)} style={{ background: T.border, border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 11.5, cursor: "pointer" }}>Cancel</button>
@@ -222,14 +247,14 @@ function MyTasks() {
                 <label style={labelStyle}>Client *</label>
                 <select value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })} style={inputStyle}>
                   <option value="">Select</option>
-                  {clients.map(c => <option key={c._id} value={c._id}>{c.client_name}</option>)}
+                  {clients.filter(c => c.status === "active").map(c => <option key={c._id} value={c._id}>{c.client_name}</option>)}
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Category *</label>
-                <select value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })} style={inputStyle}>
+                <label style={labelStyle}>Department *</label>
+                <select value={form.department_id} onChange={e => setForm({ ...form, department_id: e.target.value })} style={inputStyle}>
                   <option value="">Select</option>
-                  {categories.map(c => <option key={c._id} value={c._id}>{c.category_name}</option>)}
+                  {departments.filter(d => d.status === "active").map(d => <option key={d._id} value={d._id}>{d.department_name}</option>)}
                 </select>
               </div>
             </div>
@@ -255,11 +280,11 @@ function MyTasks() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
               <div>
-                <label style={labelStyle}>Start Date *</label>
+                <label style={labelStyle}>Start Date</label>
                 <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Deadline *</label>
+                <label style={labelStyle}>Deadline</label>
                 <input type="date" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} style={inputStyle} />
               </div>
             </div>

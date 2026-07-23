@@ -11,19 +11,23 @@ class TaskCreate(BaseModel):
     title: str
     description: str = ""
     client_id: str
-    category_id: str
+    department_id: str
     priority: str
-    start_date: str
-    deadline: str
+    start_date: str = None
+    deadline: str = None
     status: str = "open"
 
 @router.post("")
 async def create_task(task: TaskCreate, current_user: str = Depends(get_current_user)):
+    user = await get_collection("users").find_one({"_id": ObjectId(current_user)})
+    if user and user.get("designation") == "CEO":
+        return {"error": "CEO accounts do not create or manage tasks"}
+
     new_task = {
         "title": task.title,
         "description": task.description,
         "client_id": task.client_id,
-        "category_id": task.category_id,
+        "department_id": task.department_id,
         "priority": task.priority,
         "start_date": task.start_date,
         "deadline": task.deadline,
@@ -34,10 +38,10 @@ async def create_task(task: TaskCreate, current_user: str = Depends(get_current_
     return {"message": "Task created", "id": str(result.inserted_id)}
 
 @router.get("")
-async def list_tasks(client_id: str = None, category_id: str = None, status: str = None):
+async def list_tasks(client_id: str = None, department_id: str = None, status: str = None):
     query = {}
     if client_id: query["client_id"] = client_id
-    if category_id: query["category_id"] = category_id
+    if department_id: query["department_id"] = department_id
     if status: query["status"] = status
     cursor = tasks_collection.find(query)
     tasks = []

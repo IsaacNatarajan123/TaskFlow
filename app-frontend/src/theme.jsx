@@ -1,10 +1,10 @@
 // ===== Design Tokens =====
 export const T = {
   // Core palette
-  inkViolet: "#3B1370",       // deep purple — sidebar signature
-  inkVioletLight: "#5B21B6",
-  primary: "#7C3AED",         // buttons, active states
-  primaryLight: "#A78BFA",
+  inkViolet: "#6100E4",
+  inkVioletLight: "#9812FF",
+  primary: "#9812FF",
+  primaryLight: "#B84DFF",
   lavender: "#F3EEFF",        // card tints, hover bg
   amber: "#F59E0B",           // the one warm contrast accent
   green: "#10B981",

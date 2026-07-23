@@ -35,7 +35,7 @@ function Approvals() {
   const [entries, setEntries] = useState([]);
   const [tasks, setTasks] = useState({});
   const [clients, setClients] = useState({});
-  const [categories, setCategories] = useState({});
+  const [departments, setDepartments] = useState({});
   const [comment, setComment] = useState("");
   const [showReturnBox, setShowReturnBox] = useState(false);
   const [toast, setToast] = useState("");
@@ -61,19 +61,19 @@ function Approvals() {
     setShowReturnBox(false);
     setComment("");
 
-    const [tasksRes, clientsRes, catsRes, entriesRes] = await Promise.all([
+    const [tasksRes, clientsRes, deptsRes, entriesRes] = await Promise.all([
       axios.get("http://localhost:8000/tasks"),
       axios.get("http://localhost:8000/clients"),
-      axios.get("http://localhost:8000/task_categories"),
+      axios.get("http://localhost:8000/departments"),
       axios.get(`http://localhost:8000/time-entries/by-submission/${sub._id}`, { headers }).catch(() => ({ data: [] })),
     ]);
 
     const taskMap = {}; tasksRes.data.forEach(t => { taskMap[t._id] = t; });
     const clientMap = {}; clientsRes.data.forEach(c => { clientMap[c._id] = c.client_name; });
-    const catMap = {}; catsRes.data.forEach(c => { catMap[c._id] = c.category_name; });
+    const deptMap = {}; deptsRes.data.forEach(d => { deptMap[d._id] = d.department_name; });
     setTasks(taskMap);
     setClients(clientMap);
-    setCategories(catMap);
+    setDepartments(deptMap);
     setEntries(Array.isArray(entriesRes.data) ? entriesRes.data : []);
   };
 
@@ -185,7 +185,7 @@ function Approvals() {
                           <td style={{ padding: "10px 12px" }}>
                             <p style={{ margin: "0 0 2px", fontSize: 12.5, fontWeight: 600, color: T.textPrimary }}>{t?.title || "Unknown task"}</p>
                             <p style={{ margin: 0, fontSize: 10.5, color: T.textMuted }}>
-                              {clients[t?.client_id] || "—"} · {categories[t?.category_id] || "—"}
+                              {clients[t?.client_id] || "—"} · {departments[t?.department_id] || "—"}
                             </p>
                           </td>
                           {dates.map(d => (

@@ -43,13 +43,20 @@ function MyTeam() {
 
   useEffect(() => { load(); }, []);
 
+  const [teamMemberCount, setTeamMemberCount] = useState(0);
+  const userId = getUserId();
+
   const load = async () => {
-    const res = await axios.get("http://localhost:8000/submissions", { headers });
-    setTeamSubs(res.data);
+    const [subsRes, usersRes] = await Promise.all([
+      axios.get("http://localhost:8000/submissions", { headers }),
+      axios.get("http://localhost:8000/users"),
+    ]);
+    setTeamSubs(subsRes.data);
+    const directReports = usersRes.data.filter(u => u.manager_id === userId);
+    setTeamMemberCount(directReports.length);
   };
 
   const pendingCount = teamSubs.filter(s => s.status === "submitted").length;
-  const teamMemberCount = new Set(teamSubs.map(s => s.user_id)).size;
 
   return (
     <>

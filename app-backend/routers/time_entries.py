@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile, File, Form
 from pydantic import BaseModel
 from bson import ObjectId
 from database import get_collection
 from auth import get_current_user
+import openpyxl
+import io
+from datetime import datetime as dt
 
 router = APIRouter(prefix="/time-entries", tags=["time_entries"])
 time_entries_collection = get_collection("time_entries")
@@ -15,8 +18,12 @@ class TimeEntryCreate(BaseModel):
 
 @router.post("")
 async def log_time(entry: TimeEntryCreate, current_user: str = Depends(get_current_user)):
-    if entry.hours < 0 or entry.hours > 24:
-        return {"error": "Hours must be between 0 and 24"}
+    if entry.hours < 0 or entry.hours > 10:
+        return {"error": "Hours must be between 0 and 10"}
+
+    user = await get_collection("users").find_one({"_id": ObjectId(current_user)})
+    if user and user.get("designation") == "CEO":
+        return {"error": "CEO accounts do not participate in time logging"}
 
     task = await tasks_collection.find_one({"_id": ObjectId(entry.task_id)})
     if not task:
@@ -24,27 +31,26 @@ async def log_time(entry: TimeEntryCreate, current_user: str = Depends(get_curre
     if task["created_by"] != current_user:
         return {"error": "You can only log time against your own tasks"}
 
+    client = await get_collection("clients").find_one({"_id": ObjectId(task["client_id"])})
+    if client and client.get("status") == "inactive":
+        return {"error": "This task's client has been deactivated. No new hours can be logged."}
+    department = await get_collection("departments").find_one({"_id": ObjectId(task["department_id"])})
+    if department and department.get("status") == "inactive":
+        return {"error": "This task's department has been deactivated. No new hours can be logged."}
+
     existing = await time_entries_collection.find_one({
         "user_id": current_user, "task_id": entry.task_id, "date": entry.date
     })
 
-    # Check if this entry is locked (belongs to a Submitted/Approved submission)
-    if existing and existing.get("submission_id"):
-        from database import get_collection as gc
-        submissions = gc("weekly_submissions")
-        sub = await submissions.find_one({"_id": ObjectId(existing["submission_id"])})
-        if sub and sub["status"] in ["submitted", "approved"]:
-            return {"error": "This entry is locked — its week has been submitted"}
-
-    # Daily total check (soft warning handled on frontend; hard block here)
+    # Daily total check (hard block at 10 hours)
     day_entries = time_entries_collection.find({"user_id": current_user, "date": entry.date})
     day_total = 0.0
     async for e in day_entries:
         if existing and str(e["_id"]) == str(existing["_id"]):
             continue
         day_total += e["hours"]
-    if day_total + entry.hours > 24:
-        return {"error": "Daily total cannot exceed 24 hours"}
+    if day_total + entry.hours > 10:
+        return {"error": "Daily total cannot exceed 10 hours"}
 
     if existing:
         await time_entries_collection.update_one({"_id": existing["_id"]}, {"$set": {"hours": entry.hours}})
@@ -81,7 +87,6 @@ async def get_entries_by_submission(submission_id: str, current_user: str = Depe
     if not sub:
         return {"error": "Submission not found"}
 
-    # Only the submission's owner or their direct manager can view its entries
     owner = await users.find_one({"_id": ObjectId(sub["user_id"])})
     is_owner = sub["user_id"] == current_user
     is_manager = owner and owner.get("manager_id") == current_user
@@ -94,3 +99,151 @@ async def get_entries_by_submission(submission_id: str, current_user: str = Depe
         e["_id"] = str(e["_id"])
         entries.append(e)
     return entries
+
+@router.post("/bulk-upload")
+async def bulk_upload(file: UploadFile = File(...), week_start: str = Form(...), current_user: str = Depends(get_current_user)):
+    from datetime import datetime, timedelta
+
+    contents = await file.read()
+    filename = file.filename.lower()
+
+    if filename.endswith(".csv"):
+        import csv
+        decoded = contents.decode("utf-8")
+        csv_reader = csv.reader(io.StringIO(decoded))
+        all_rows = list(csv_reader)
+    else:
+        wb = openpyxl.load_workbook(io.BytesIO(contents))
+        ws = wb.active
+        all_rows = list(ws.iter_rows(values_only=True))
+
+    header = all_rows[0]
+    rows = all_rows[1:]
+
+    # Reconstruct real dates from week_start, since the header only has day labels like "22-Wed"
+    start = datetime.strptime(week_start, "%Y-%m-%d")
+    week_dates = [(start + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(len(header) - 1)]
+
+    saved = 0
+    skipped = []
+
+    for i, row in enumerate(rows, start=2):
+        task_title = row[0]
+        if not task_title:
+            continue
+
+        matching_tasks = await tasks_collection.count_documents({"title": task_title, "created_by": current_user})
+        if matching_tasks == 0:
+            skipped.append({"row": i, "reason": f"Task '{task_title}' not found"})
+            continue
+        if matching_tasks > 1:
+            skipped.append({"row": i, "reason": f"Multiple tasks named '{task_title}' — please rename one to avoid ambiguity"})
+            continue
+        task = await tasks_collection.find_one({"title": task_title, "created_by": current_user})
+
+        client = await get_collection("clients").find_one({"_id": ObjectId(task["client_id"])})
+        if client and client.get("status") == "inactive":
+            skipped.append({"row": i, "reason": "Task's client has been deactivated"})
+            continue
+        department = await get_collection("departments").find_one({"_id": ObjectId(task["department_id"])})
+        if department and department.get("status") == "inactive":
+            skipped.append({"row": i, "reason": "Task's department has been deactivated"})
+            continue
+
+        for col_idx, hours in enumerate(row[1:]):
+            if hours is None or hours == "":
+                continue
+            if col_idx >= len(week_dates):
+                continue
+            date_str = week_dates[col_idx]
+
+            try:
+                hours_val = float(hours)
+            except (ValueError, TypeError):
+                skipped.append({"row": i, "reason": f"Invalid hours value for {date_str}"})
+                continue
+
+            if hours_val < 0 or hours_val > 10:
+                skipped.append({"row": i, "reason": f"Hours must be between 0 and 10 ({date_str})"})
+                continue
+
+            existing = await time_entries_collection.find_one({
+                "user_id": current_user, "task_id": str(task["_id"]), "date": date_str
+            })
+            day_entries = time_entries_collection.find({"user_id": current_user, "date": date_str})
+            day_total = 0.0
+            async for e in day_entries:
+                if existing and str(e["_id"]) == str(existing["_id"]):
+                    continue
+                day_total += e["hours"]
+            if day_total + hours_val > 10:
+                skipped.append({"row": i, "reason": f"Would exceed 10-hour daily cap ({date_str})"})
+                continue
+
+            if existing:
+                await time_entries_collection.update_one({"_id": existing["_id"]}, {"$set": {"hours": hours_val}})
+            else:
+                await time_entries_collection.insert_one({
+                    "user_id": current_user, "task_id": str(task["_id"]), "date": date_str,
+                    "hours": hours_val, "submission_id": None
+                })
+            saved += 1
+
+    return {"saved": saved, "skipped": skipped}
+
+@router.get("/download-template")
+async def download_template(week_start: str, current_user: str = Depends(get_current_user)):
+    from openpyxl import Workbook
+    from datetime import datetime, timedelta
+    import io as io_module
+    from fastapi.responses import StreamingResponse
+
+    start = datetime.strptime(week_start, "%Y-%m-%d")
+    days = [(start + timedelta(days=i)) for i in range(7)]
+    day_labels = [f"{d.day}-{d.strftime('%a')}" for d in days]
+    day_strs = [d.strftime("%Y-%m-%d") for d in days]
+
+    user_tasks = tasks_collection.find({"created_by": current_user, "status": {"$ne": "closed"}})
+    task_list = [t async for t in user_tasks]
+
+    existing_entries = time_entries_collection.find({
+        "user_id": current_user,
+        "date": {"$gte": day_strs[0], "$lte": day_strs[-1]}
+    })
+    entry_map = {}
+    async for e in existing_entries:
+        entry_map[(e["task_id"], e["date"])] = e["hours"]
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Log Time"
+    ws.append(["Task"] + day_labels)
+
+    for t in task_list:
+        row = [t["title"]]
+        for ds in day_strs:
+            row.append(entry_map.get((str(t["_id"]), ds), ""))
+        ws.append(row)
+
+    for col in ws.columns:
+        max_length = max((len(str(cell.value)) for cell in col if cell.value), default=10)
+        col_letter = col[0].column_letter
+        ws.column_dimensions[col_letter].width = max_length + 3
+
+    output = io_module.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=timesheet_template.xlsx"}
+    )
+
+@router.delete("/{task_id}/{date}")
+async def delete_time_entry(task_id: str, date: str, current_user: str = Depends(get_current_user)):
+    result = await time_entries_collection.delete_one({
+        "user_id": current_user, "task_id": task_id, "date": date
+    })
+    if result.deleted_count == 0:
+        return {"error": "Entry not found"}
+    return {"message": "Entry deleted"}

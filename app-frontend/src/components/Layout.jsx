@@ -11,8 +11,11 @@ function getUserId() {
 }
 
 function Layout({ active, children }) {
-  const [userName, setUserName] = useState("");
-  const [isManager, setIsManager] = useState(false);
+  const [userName, setUserName] = useState(localStorage.getItem("cachedName") || "");
+  const [isManager, setIsManager] = useState(localStorage.getItem("cachedIsManager") === "true");
+  const [isDirector, setIsDirector] = useState(localStorage.getItem("cachedIsDirector") === "true");
+  const [isCEO, setIsCEO] = useState(localStorage.getItem("cachedIsCEO") === "true");
+  const [designation, setDesignation] = useState(localStorage.getItem("cachedDesignation") || "");
   const navigate = useNavigate();
   const userId = getUserId();
 
@@ -20,12 +23,28 @@ function Layout({ active, children }) {
     const token = localStorage.getItem("token");
     if (!token) { navigate("/"); return; }
     const headers = { authorization: `Bearer ${token}` };
-    axios.get("http://localhost:8000/auth/me", { headers }).then(res => setUserName(res.data.name));
+    axios.get("http://localhost:8000/auth/me", { headers }).then(res => {
+      setUserName(res.data.name);
+      localStorage.setItem("cachedName", res.data.name);
+    });
 
     // Auto-detect manager status: does anyone else have this user as their manager_id?
     axios.get("http://localhost:8000/users").then(res => {
       const hasDirectReports = res.data.some(u => u.manager_id === userId);
       setIsManager(hasDirectReports);
+      localStorage.setItem("cachedIsManager", hasDirectReports);
+    });
+
+    // Director/CEO access is designation-based, not reporting-line-based
+    axios.get("http://localhost:8000/auth/me", { headers }).then(res => {
+      const director = ["Director", "Sr. Director", "CEO"].includes(res.data.designation);
+      const ceo = res.data.designation === "CEO";
+      setIsDirector(director);
+      setIsCEO(ceo);
+      setDesignation(res.data.designation || "");
+      localStorage.setItem("cachedIsDirector", director);
+      localStorage.setItem("cachedIsCEO", ceo);
+      localStorage.setItem("cachedDesignation", res.data.designation || "");
     });
   }, []);
 
@@ -42,9 +61,11 @@ function Layout({ active, children }) {
   ];
   const managerItems = [
     { label: "Approvals", icon: FileCheck2, route: "/approvals" },
+  ];
+  const directorItems = [
     { label: "Reports", icon: BarChart3, route: "/reports" },
     { label: "Manage Clients", icon: Users, route: "/manage-clients" },
-    { label: "Manage Categories", icon: Tags, route: "/manage-categories" },
+    { label: "Manage Departments", icon: Tags, route: "/manage-departments" },
   ];
 
   return (
@@ -64,7 +85,7 @@ function Layout({ active, children }) {
           <span style={{ fontWeight: 800, fontSize: 17, color: "#fff", fontFamily: fontDisplay, letterSpacing: "-0.02em" }}>TaskFlow</span>
         </div>
 
-        <p style={{ fontSize: 10.5, fontWeight: 700, color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em", textTransform: "uppercase", margin: "4px 8px 8px" }}>
+        <p style={{ fontSize: 10.5, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase", margin: "4px 8px 8px" }}>
           Workspace
         </p>
         {employeeItems.map(({ label, icon: Icon, route }) => {
@@ -74,8 +95,8 @@ function Layout({ active, children }) {
               style={{
                 display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 10,
                 background: isActive ? "rgba(255,255,255,0.14)" : "transparent",
-                color: isActive ? "#fff" : "rgba(255,255,255,0.68)",
-                fontSize: 13.5, fontWeight: isActive ? 700 : 500, cursor: "pointer",
+                color: isActive ? "#fff" : "rgba(255,255,255,0.85)",
+                fontSize: 13.5, fontWeight: isActive ? 700 : 600, cursor: "pointer",
                 transition: "background 0.15s ease",
               }}>
               <Icon size={16} />
@@ -84,10 +105,10 @@ function Layout({ active, children }) {
           );
         })}
 
-        {isManager && (
+        {isManager && !isCEO && (
           <>
-            <p style={{ fontSize: 10.5, fontWeight: 700, color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em", textTransform: "uppercase", margin: "18px 8px 8px" }}>
-              Manager
+            <p style={{ fontSize: 10.5, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase", margin: "18px 8px 8px" }}>
+              Review Queue
             </p>
             {managerItems.map(({ label, icon: Icon, route }) => {
               const isActive = active === label;
@@ -96,8 +117,32 @@ function Layout({ active, children }) {
                   style={{
                     display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 10,
                     background: isActive ? "rgba(255,255,255,0.14)" : "transparent",
-                    color: isActive ? "#fff" : "rgba(255,255,255,0.68)",
-                    fontSize: 13.5, fontWeight: isActive ? 700 : 500, cursor: "pointer",
+                    color: isActive ? "#fff" : "rgba(255,255,255,0.85)",
+                    fontSize: 13.5, fontWeight: isActive ? 700 : 600, cursor: "pointer",
+                    transition: "background 0.15s ease",
+                  }}>
+                  <Icon size={16} />
+                  {label}
+                </div>
+              );
+            })}
+          </>
+        )}
+
+        {isDirector && (
+          <>
+            <p style={{ fontSize: 10.5, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase", margin: "18px 8px 8px" }}>
+              Director
+            </p>
+            {directorItems.map(({ label, icon: Icon, route }) => {
+              const isActive = active === label;
+              return (
+                <div key={label} onClick={() => navigate(route)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 10,
+                    background: isActive ? "rgba(255,255,255,0.14)" : "transparent",
+                    color: isActive ? "#fff" : "rgba(255,255,255,0.85)",
+                    fontSize: 13.5, fontWeight: isActive ? 700 : 600, cursor: "pointer",
                     transition: "background 0.15s ease",
                   }}>
                   <Icon size={16} />
@@ -113,7 +158,7 @@ function Layout({ active, children }) {
             <Avatar initials={userName ? userName.slice(0, 2).toUpperCase() : "??"} size={32} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{userName || "Loading..."}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{isManager ? "Manager" : "Employee"}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{designation && ["Director", "Sr. Director", "CEO", "Lead", "Senior Lead"].includes(designation) ? designation : isManager ? "Manager" : "Employee"}</div>
             </div>
             <button onClick={handleLogout} title="Logout" style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", display: "flex" }}>
               <LogOut size={15} />

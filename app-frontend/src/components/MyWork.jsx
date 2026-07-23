@@ -18,6 +18,16 @@ function getMonday(d = new Date()) {
   return date.toISOString().split("T")[0];
 }
 
+function deadlineBadge(deadline, status) {
+  if (!deadline || status === "closed") return null;
+  const today = new Date().toISOString().split("T")[0];
+  const daysLeft = Math.ceil((new Date(deadline) - new Date(today)) / (1000 * 60 * 60 * 24));
+  if (daysLeft < 0) return { label: "Overdue", color: "#F87171", bg: "#FEE2E2" };
+  if (daysLeft === 0) return { label: "Due today", color: "#EA580C", bg: "#FFEDD5" };
+  if (daysLeft <= 3) return { label: `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`, color: "#EA580C", bg: "#FFEDD5" };
+  return null;
+}
+
 function StatCard({ icon: Icon, label, value, accent }) {
   return (
     <div style={{ ...cardStyle, flex: 1, display: "flex", alignItems: "center", gap: 14 }}>
@@ -42,6 +52,8 @@ function MyWork() {
   const [activeTasks, setActiveTasks] = useState(0);
   const [managerName, setManagerName] = useState("");
   const [recentTasks, setRecentTasks] = useState([]);
+  const [clients, setClients] = useState({});
+  const [departments, setDepartments] = useState({});
   const navigate = useNavigate();
   const userId = getUserId();
   const token = localStorage.getItem("token");
@@ -57,10 +69,19 @@ function MyWork() {
     const entries = await axios.get(`http://localhost:8000/time-entries?week_start=${weekStart}`, { headers });
     setWeekHours(entries.data.reduce((sum, e) => sum + e.hours, 0));
 
-    const tasks = await axios.get("http://localhost:8000/tasks");
+    const [tasks, clientsRes, deptsRes] = await Promise.all([
+      axios.get("http://localhost:8000/tasks"),
+      axios.get("http://localhost:8000/clients"),
+      axios.get("http://localhost:8000/departments"),
+    ]);
     const myTasks = tasks.data.filter(t => t.created_by === userId);
     setActiveTasks(myTasks.filter(t => t.status !== "closed").length);
     setRecentTasks(myTasks.slice(-5).reverse());
+
+    const clientMap = {}; clientsRes.data.forEach(c => { clientMap[c._id] = c.client_name; });
+    const deptMap = {}; deptsRes.data.forEach(d => { deptMap[d._id] = d.department_name; });
+    setClients(clientMap);
+    setDepartments(deptMap);
   };
 
   return (
@@ -73,9 +94,14 @@ function MyWork() {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.textPrimary, fontFamily: fontDisplay }}>Recent Tasks</h2>
-        <button onClick={() => navigate("/log-time")} style={{ ...btnPrimary, width: "auto", padding: "9px 16px", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-          <Plus size={15} /> Log Time
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => navigate("/my-tasks")} style={{ ...btnPrimary, width: "auto", padding: "9px 16px", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+            <Plus size={15} /> Create Task
+          </button>
+          <button onClick={() => navigate("/log-time")} style={{ ...btnPrimary, width: "auto", padding: "9px 16px", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+            <Plus size={15} /> Log Time
+          </button>
+        </div>
       </div>
 
       {recentTasks.length === 0 ? (
@@ -88,15 +114,26 @@ function MyWork() {
             <div key={t._id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center", animation: `fadeIn 0.3s ease ${idx * 0.05}s backwards` }}>
               <div>
                 <p style={{ margin: "0 0 4px", fontSize: 13.5, fontWeight: 600, color: T.textPrimary }}>{t.title}</p>
-                <p style={{ margin: 0, fontSize: 11.5, color: T.textMuted }}>{t.priority} priority</p>
+                <p style={{ margin: 0, fontSize: 11.5, color: T.textMuted }}>
+                  {clients[t.client_id] || "—"} · {departments[t.department_id] || "—"} · {t.priority} priority
+                </p>
               </div>
-              <span style={{
-                fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20,
-                color: t.status === "closed" ? T.textMuted : T.primary,
-                background: t.status === "closed" ? T.border : T.lavender,
-              }}>
-                {t.status}
-              </span>
+              <div style={{ display: "flex", gap: 6 }}>
+                {(() => {
+                  const badge = deadlineBadge(t.deadline, t.status);
+                  return badge ? (
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: badge.color, background: badge.bg, padding: "3px 10px", borderRadius: 20 }}>{badge.label}</span>
+                  ) : null;
+                })()}
+                <span style={{
+                  fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 20,
+                  color: t.status === "closed" ? T.textMuted : T.primary,
+                  background: t.status === "closed" ? T.border : T.lavender,
+                  textTransform: "capitalize",
+                }}>
+                  {t.status.replace("_", " ")}
+                </span>
+              </div>
             </div>
           ))}
         </div>

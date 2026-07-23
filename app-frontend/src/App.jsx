@@ -10,7 +10,7 @@ import Submissions from "./pages/Submissions";
 import Approvals from "./pages/Approvals";
 import Reports from "./pages/Reports";
 import ManageClients from "./pages/ManageClients";
-import ManageCategories from "./pages/ManageCategories";
+import ManageDepartments from "./pages/ManageDepartments";
 
 function App() {
   return (
@@ -27,7 +27,7 @@ function App() {
         <Route path="/approvals" element={<Approvals />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/manage-clients" element={<ManageClients />} />
-        <Route path="/manage-categories" element={<ManageCategories />} />
+        <Route path="/manage-departments" element={<ManageDepartments />} />
       </Routes>
     </BrowserRouter>
   );
