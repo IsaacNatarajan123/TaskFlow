@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Clock3, ListChecks, UserCircle2, Plus } from "lucide-react";
 import { T, fontDisplay, cardStyle, btnPrimary } from "../theme";
+import { API_URL } from "../config";
 
 function getUserId() {
   const token = localStorage.getItem("token");
@@ -62,17 +63,17 @@ function MyWork() {
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    const me = await axios.get("http://localhost:8000/auth/me", { headers });
+    const me = await axios.get(`${API_URL}/auth/me`, { headers });
     setManagerName(me.data.manager_name || "Not assigned");
 
     const weekStart = getMonday();
-    const entries = await axios.get(`http://localhost:8000/time-entries?week_start=${weekStart}`, { headers });
+    const entries = await axios.get(`${API_URL}/time-entries?week_start=${weekStart}`, { headers });
     setWeekHours(entries.data.reduce((sum, e) => sum + e.hours, 0));
 
     const [tasks, clientsRes, deptsRes] = await Promise.all([
-      axios.get("http://localhost:8000/tasks"),
-      axios.get("http://localhost:8000/clients"),
-      axios.get("http://localhost:8000/departments"),
+      axios.get(`${API_URL}/tasks`),
+      axios.get(`${API_URL}/clients`),
+      axios.get(`${API_URL}/departments`),
     ]);
     const myTasks = tasks.data.filter(t => t.created_by === userId);
     setActiveTasks(myTasks.filter(t => t.status !== "closed").length);

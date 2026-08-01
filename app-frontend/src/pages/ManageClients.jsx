@@ -3,6 +3,7 @@ import axios from "axios";
 import { Plus, X } from "lucide-react";
 import { T, fontDisplay, cardStyle, inputStyle, labelStyle, btnPrimary, Toast } from "../theme";
 import Layout from "../components/Layout";
+import { API_URL } from "../config";
 
 function ManageClients() {
   const [clients, setClients] = useState([]);
@@ -23,7 +24,7 @@ function ManageClients() {
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    const res = await axios.get("http://localhost:8000/clients");
+    const res = await axios.get(`${API_URL}/clients`);
     setClients(res.data);
   };
 
@@ -45,10 +46,10 @@ function ManageClients() {
     if (!name.trim()) { showToast("Client name is required", "error"); return; }
     try {
       if (editing) {
-        await axios.patch(`http://localhost:8000/clients/${editing._id}`, { client_name: name, status });
+        await axios.patch(`${API_URL}/clients/${editing._id}`, { client_name: name, status });
         showToast("Client updated", "success");
       } else {
-        const res = await axios.post("http://localhost:8000/clients", { client_name: name, status });
+        const res = await axios.post(`${API_URL}/clients`, { client_name: name, status });
         if (res.data.error) { showToast(res.data.error, "error"); return; }
         showToast("Client created", "success");
       }
@@ -60,7 +61,7 @@ function ManageClients() {
   };
 
   const handleDelete = async (id) => {
-    const res = await axios.delete(`http://localhost:8000/clients/${id}`);
+    const res = await axios.delete(`${API_URL}/clients/${id}`);
     setConfirmDeleteId(null);
     if (res.data.error) { showToast(res.data.error, "error"); return; }
     showToast("Client deleted", "success");
@@ -69,10 +70,10 @@ function ManageClients() {
 
   const handleToggleStatus = async (c) => {
     if (c.status === "active") {
-      await axios.patch(`http://localhost:8000/clients/${c._id}/deactivate`);
+      await axios.patch(`${API_URL}/clients/${c._id}/deactivate`);
       showToast("Client deactivated", "success");
     } else {
-      await axios.patch(`http://localhost:8000/clients/${c._id}`, { client_name: c.client_name, status: "active" });
+      await axios.patch(`${API_URL}/clients/${c._id}`, { client_name: c.client_name, status: "active" });
       showToast("Client activated", "success");
     }
     load();

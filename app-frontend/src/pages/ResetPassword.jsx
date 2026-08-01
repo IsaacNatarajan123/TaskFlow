@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Lock } from "lucide-react";
 import { T, cardStyle, inputStyle, labelStyle, btnPrimary, Toast, isValidPassword } from "../theme";
+import { API_URL } from "../config";
 
 function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -26,7 +27,7 @@ function ResetPassword() {
     return;
   }
   try {
-    const res = await axios.post("http://localhost:8000/auth/reset-password", { token, new_password: password });
+    const res = await axios.post(`${API_URL}/auth/reset-password`, { token, new_password: password });
     if (res.data.error) {
       setError(res.data.error);
       setTimeout(() => setError(""), 3000);

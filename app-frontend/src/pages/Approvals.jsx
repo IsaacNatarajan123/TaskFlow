@@ -3,6 +3,7 @@ import axios from "axios";
 import { CheckCircle2, XCircle, ChevronRight, X } from "lucide-react";
 import { T, fontDisplay, cardStyle, btnPrimary, Toast } from "../theme";
 import Layout from "../components/Layout";
+import { API_URL } from "../config";
 
 const STATUS_META = {
   submitted: { label: "Submitted", color: T.primary, bg: T.lavender },
@@ -52,7 +53,7 @@ function Approvals() {
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    const res = await axios.get("http://localhost:8000/submissions", { headers });
+    const res = await axios.get(`${API_URL}/submissions`, { headers });
     setSubs(res.data);
   };
 
@@ -62,10 +63,10 @@ function Approvals() {
     setComment("");
 
     const [tasksRes, clientsRes, deptsRes, entriesRes] = await Promise.all([
-      axios.get("http://localhost:8000/tasks"),
-      axios.get("http://localhost:8000/clients"),
-      axios.get("http://localhost:8000/departments"),
-      axios.get(`http://localhost:8000/time-entries/by-submission/${sub._id}`, { headers }).catch(() => ({ data: [] })),
+      axios.get(`${API_URL}/tasks`),
+      axios.get(`${API_URL}/clients`),
+      axios.get(`${API_URL}/departments`),
+      axios.get(`${API_URL}/time-entries/by-submission/${sub._id}`, { headers }).catch(() => ({ data: [] })),
     ]);
 
     const taskMap = {}; tasksRes.data.forEach(t => { taskMap[t._id] = t; });
@@ -78,7 +79,7 @@ function Approvals() {
   };
 
   const handleApprove = async () => {
-    const res = await axios.post(`http://localhost:8000/submissions/${selected._id}/approve`, {}, { headers });
+    const res = await axios.post(`${API_URL}/submissions/${selected._id}/approve`, {}, { headers });
     if (res.data.error) { showToast(res.data.error, "error"); return; }
     showToast("Submission approved", "success");
     setSelected(null);
@@ -87,7 +88,7 @@ function Approvals() {
 
   const handleReturn = async () => {
     if (!comment.trim()) { showToast("A comment is required to return a submission", "error"); return; }
-    const res = await axios.post(`http://localhost:8000/submissions/${selected._id}/return`, { comment }, { headers });
+    const res = await axios.post(`${API_URL}/submissions/${selected._id}/return`, { comment }, { headers });
     if (res.data.error) { showToast(res.data.error, "error"); return; }
     showToast("Submission returned", "success");
     setSelected(null);

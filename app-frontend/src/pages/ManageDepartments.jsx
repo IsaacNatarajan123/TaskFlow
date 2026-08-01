@@ -3,6 +3,7 @@ import axios from "axios";
 import { Plus, X } from "lucide-react";
 import { T, fontDisplay, cardStyle, inputStyle, labelStyle, btnPrimary, Toast } from "../theme";
 import Layout from "../components/Layout";
+import { API_URL } from "../config";
 
 function ManageDepartments() {
   const [departments, setDepartments] = useState([]);
@@ -23,7 +24,7 @@ function ManageDepartments() {
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    const res = await axios.get("http://localhost:8000/departments");
+    const res = await axios.get(`${API_URL}/departments`);
     setDepartments(res.data);
   };
 
@@ -45,10 +46,10 @@ function ManageDepartments() {
     if (!name.trim()) { showToast("Department name is required", "error"); return; }
     try {
       if (editing) {
-        await axios.patch(`http://localhost:8000/departments/${editing._id}`, { department_name: name, status });
+        await axios.patch(`${API_URL}/departments/${editing._id}`, { department_name: name, status });
         showToast("Department updated", "success");
       } else {
-        const res = await axios.post("http://localhost:8000/departments", { department_name: name, status });
+        const res = await axios.post(`${API_URL}/departments`, { department_name: name, status });
         if (res.data.error) { showToast(res.data.error, "error"); return; }
         showToast("Department created", "success");
       }
@@ -60,7 +61,7 @@ function ManageDepartments() {
   };
 
   const handleDelete = async (id) => {
-    const res = await axios.delete(`http://localhost:8000/departments/${id}`);
+    const res = await axios.delete(`${API_URL}/departments/${id}`);
     setConfirmDeleteId(null);
     if (res.data.error) { showToast(res.data.error, "error"); return; }
     showToast("Department deleted", "success");
@@ -69,10 +70,10 @@ function ManageDepartments() {
 
   const handleToggleStatus = async (d) => {
     if (d.status === "active") {
-      await axios.patch(`http://localhost:8000/departments/${d._id}/deactivate`);
+      await axios.patch(`${API_URL}/departments/${d._id}/deactivate`);
       showToast("Department deactivated", "success");
     } else {
-      await axios.patch(`http://localhost:8000/departments/${d._id}`, { department_name: d.department_name, status: "active" });
+      await axios.patch(`${API_URL}/departments/${d._id}`, { department_name: d.department_name, status: "active" });
       showToast("Department activated", "success");
     }
     load();

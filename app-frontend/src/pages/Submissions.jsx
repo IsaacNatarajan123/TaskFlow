@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { FileCheck2, Clock3, XCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { T, fontDisplay, cardStyle } from "../theme";
 import Layout from "../components/Layout";
+import { API_URL } from "../config";
 
 function getUserId() {
   const token = localStorage.getItem("token");
@@ -36,7 +37,6 @@ const STATUS_META = {
   returned: { label: "Returned", color: T.coral, bg: "#FEE2E2", icon: XCircle },
 };
 
-// Groups flat entries by task, keeping the daily breakdown nested underneath
 function groupByTask(entryList, tasks, clients, departments) {
   const groups = {};
   for (const e of entryList) {
@@ -76,10 +76,10 @@ function Submissions() {
 
   const load = async () => {
     const [subsRes, tasksRes, clientsRes, deptsRes] = await Promise.all([
-      axios.get("http://localhost:8000/submissions/my", { headers }),
-      axios.get("http://localhost:8000/tasks"),
-      axios.get("http://localhost:8000/clients"),
-      axios.get("http://localhost:8000/departments"),
+      axios.get(`${API_URL}/submissions/my`, { headers }),
+      axios.get(`${API_URL}/tasks`),
+      axios.get(`${API_URL}/clients`),
+      axios.get(`${API_URL}/departments`),
     ]);
     const sorted = subsRes.data.sort((a, b) => b.week_start_date.localeCompare(a.week_start_date));
     setSubs(sorted);
@@ -100,7 +100,7 @@ function Submissions() {
     setExpanded(sub._id);
     setExpandedTask(null);
     if (!details[sub._id]) {
-      const res = await axios.get(`http://localhost:8000/time-entries/by-submission/${sub._id}`, { headers }).catch(() => ({ data: [] }));
+      const res = await axios.get(`${API_URL}/time-entries/by-submission/${sub._id}`, { headers }).catch(() => ({ data: [] }));
       setDetails(prev => ({ ...prev, [sub._id]: Array.isArray(res.data) ? res.data : [] }));
     }
   };

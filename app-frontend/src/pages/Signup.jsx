@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { User, Mail, Lock } from "lucide-react";
 import { T, cardStyle, inputStyle, labelStyle, btnPrimary, Logo, Toast, isValidPassword } from "../theme";
+import { API_URL } from "../config";
 
 function Signup() {
   const [name, setName] = useState("");
@@ -19,7 +20,7 @@ function Signup() {
     return;
   }
   try {
-    const res = await axios.post("http://localhost:8000/auth/signup", { name, email, password });
+    const res = await axios.post(`${API_URL}/auth/signup`, { name, email, password });
     if (res.data.error) {
       setError(res.data.error);
       setTimeout(() => setError(""), 3000);

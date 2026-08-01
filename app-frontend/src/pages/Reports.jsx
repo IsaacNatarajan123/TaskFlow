@@ -3,6 +3,7 @@ import axios from "axios";
 import { BarChart3, Users2, Clock3, ChevronDown, ChevronUp, ChevronRight, Download } from "lucide-react";
 import { T, fontDisplay, cardStyle, btnPrimary } from "../theme";
 import Layout from "../components/Layout";
+import { API_URL } from "../config";
 
 function StatCard({ icon: Icon, label, value, accent }) {
   return (
@@ -23,7 +24,6 @@ function StatCard({ icon: Icon, label, value, accent }) {
 }
 const COLORS = ["#7C3AED", "#10B981", "#F59E0B", "#F87171", "#3B82F6", "#EC4899"];
 
-// Groups flat entries by task+employee combo, summing hours, keeping the daily breakdown nested underneath
 function groupByTask(details) {
   const groups = {};
   for (const d of details) {
@@ -69,7 +69,7 @@ function Reports() {
   const loadReport = () => {
     setDrilldown({});
     setExpandedClient(null);
-    axios.get(`http://localhost:8000/reports/company-wide?start_date=${startDate}&end_date=${endDate}`, { headers: { authorization: `Bearer ${token}` } })
+    axios.get(`${API_URL}/reports/company-wide?start_date=${startDate}&end_date=${endDate}`, { headers: { authorization: `Bearer ${token}` } })
       .then(res => setRows(res.data.sort((a, b) => b.total_hours - a.total_hours)));
   };
 
@@ -87,13 +87,13 @@ function Reports() {
     setExpandedClient(client.client_id);
     setExpandedTask(null);
     if (!drilldown[client.client_id]) {
-      const res = await axios.get(`http://localhost:8000/reports/client/${client.client_id}?start_date=${startDate}&end_date=${endDate}`, { headers: { authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${API_URL}/reports/client/${client.client_id}?start_date=${startDate}&end_date=${endDate}`, { headers: { authorization: `Bearer ${token}` } });
       setDrilldown(prev => ({ ...prev, [client.client_id]: res.data }));
     }
   };
 
   const handleExport = async () => {
-    const res = await axios.get(`http://localhost:8000/reports/company-wide/export?start_date=${startDate}&end_date=${endDate}`, {
+    const res = await axios.get(`${API_URL}/reports/company-wide/export?start_date=${startDate}&end_date=${endDate}`, {
       headers: { authorization: `Bearer ${token}` },
       responseType: "blob",
     });

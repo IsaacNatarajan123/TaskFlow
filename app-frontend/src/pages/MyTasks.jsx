@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Search, X } from "lucide-react";
 import { T, fontDisplay, cardStyle, inputStyle, labelStyle, btnPrimary, Toast } from "../theme";
 import Layout from "../components/Layout";
+import { API_URL } from "../config";
 
 function getUserId() {
   const token = localStorage.getItem("token");
@@ -53,9 +54,9 @@ function MyTasks() {
 
   const loadAll = async () => {
     const [taskRes, clientRes, deptRes] = await Promise.all([
-      axios.get("http://localhost:8000/tasks"),
-      axios.get("http://localhost:8000/clients"),
-      axios.get("http://localhost:8000/departments"),
+      axios.get(`${API_URL}/tasks`),
+      axios.get(`${API_URL}/clients`),
+      axios.get(`${API_URL}/departments`),
     ]);
     setTasks(taskRes.data.filter(t => t.created_by === userId));
     setClients(clientRes.data);
@@ -102,11 +103,11 @@ function MyTasks() {
     }
     try {
       if (editingTask) {
-        const res = await axios.patch(`http://localhost:8000/tasks/${editingTask._id}`, form, { headers });
+        const res = await axios.patch(`${API_URL}/tasks/${editingTask._id}`, form, { headers });
         if (res.data.error) { showToast(res.data.error, "error"); return; }
         showToast("Task updated", "success");
       } else {
-        const res = await axios.post("http://localhost:8000/tasks", form, { headers });
+        const res = await axios.post(`${API_URL}/tasks`, form, { headers });
         if (res.data.error) { showToast(res.data.error, "error"); return; }
         showToast("Task created", "success");
       }
@@ -118,14 +119,14 @@ function MyTasks() {
   };
 
   const handleClose = async (task) => {
-    const res = await axios.patch(`http://localhost:8000/tasks/${task._id}`, { status: "closed" }, { headers });
+    const res = await axios.patch(`${API_URL}/tasks/${task._id}`, { status: "closed" }, { headers });
     if (res.data.error) { showToast(res.data.error, "error"); return; }
     showToast("Task closed", "success");
     loadAll();
   };
 
   const handleDelete = async (taskId) => {
-    const res = await axios.delete(`http://localhost:8000/tasks/${taskId}`, { headers });
+    const res = await axios.delete(`${API_URL}/tasks/${taskId}`, { headers });
     setConfirmDeleteId(null);
     if (res.data.error) { showToast(res.data.error, "error"); return; }
     showToast("Task deleted", "success");

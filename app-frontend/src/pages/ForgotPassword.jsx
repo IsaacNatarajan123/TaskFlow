@@ -3,6 +3,7 @@ import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail } from "lucide-react";
 import { T, cardStyle, inputStyle, labelStyle, btnPrimary, Logo, Toast } from "../theme";
+import { API_URL } from "../config";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -12,7 +13,7 @@ function ForgotPassword() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post("http://localhost:8000/auth/forgot-password", { email });
+      const res = await axios.post(`${API_URL}/auth/forgot-password`, { email });
       if (res.data.error) {
         setError(res.data.error);
         setTimeout(() => setError(""), 3000);

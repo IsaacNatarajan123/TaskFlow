@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { T, fontDisplay } from "../theme";
+import { API_URL } from "../config";
 import Layout from "../components/Layout";
 import MyWork from "../components/MyWork";
 import MyTeam from "../components/MyTeam";
@@ -24,7 +25,7 @@ function Dashboard() {
   }, []);
 
   const checkManager = async () => {
-    const res = await axios.get("http://localhost:8000/users");
+    const res = await axios.get(`${API_URL}/users`);
     const hasReports = res.data.some(u => u.manager_id === userId);
     setIsManager(hasReports);
     if (hasReports) setTab("team");

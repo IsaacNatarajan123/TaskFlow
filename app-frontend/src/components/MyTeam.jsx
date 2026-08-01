@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Users2, FileClock, ListChecks } from "lucide-react";
 import { T, fontDisplay, cardStyle } from "../theme";
+import { API_URL } from "../config";
 
 function getUserId() {
   const token = localStorage.getItem("token");
@@ -34,22 +35,20 @@ const STATUS_META = {
   returned: { label: "Returned", color: T.coral, bg: "#FEE2E2" },
 };
 
-// Manager's team overview — shown as the "My Team" tab on the Dashboard.
 function MyTeam() {
   const [teamSubs, setTeamSubs] = useState([]);
+  const [teamMemberCount, setTeamMemberCount] = useState(0);
   const navigate = useNavigate();
+  const userId = getUserId();
   const token = localStorage.getItem("token");
   const headers = { authorization: `Bearer ${token}` };
 
   useEffect(() => { load(); }, []);
 
-  const [teamMemberCount, setTeamMemberCount] = useState(0);
-  const userId = getUserId();
-
   const load = async () => {
     const [subsRes, usersRes] = await Promise.all([
-      axios.get("http://localhost:8000/submissions", { headers }),
-      axios.get("http://localhost:8000/users"),
+      axios.get(`${API_URL}/submissions`, { headers }),
+      axios.get(`${API_URL}/users`),
     ]);
     setTeamSubs(subsRes.data);
     const directReports = usersRes.data.filter(u => u.manager_id === userId);

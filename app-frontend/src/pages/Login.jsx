@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { T, cardStyle, inputStyle, labelStyle, btnPrimary, Logo, Toast } from "../theme";
 import { Mail, Lock } from "lucide-react";
+import { API_URL } from "../config";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -13,7 +14,7 @@ function Login() {
   const handleLogin = async (e) => {
   e.preventDefault();
   try {
-    const res = await axios.post("http://localhost:8000/auth/login", { email, password });
+    const res = await axios.post(`${API_URL}/auth/login`, { email, password });
     if (res.data.error) {
       setError(res.data.error);
       setTimeout(() => setError(""), 3000);

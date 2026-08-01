@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Send, Upload, Download } from "lucide-react";
 import { T, fontDisplay, cardStyle, btnPrimary, Toast } from "../theme";
 import Layout from "../components/Layout";
+import { API_URL } from "../config";
 
 function getUserId() {
   const token = localStorage.getItem("token");
@@ -65,9 +66,9 @@ function LogTime() {
 
   const load = async () => {
     const [taskRes, clientRes, deptRes] = await Promise.all([
-      axios.get("http://localhost:8000/tasks"),
-      axios.get("http://localhost:8000/clients"),
-      axios.get("http://localhost:8000/departments"),
+      axios.get(`${API_URL}/tasks`),
+      axios.get(`${API_URL}/clients`),
+      axios.get(`${API_URL}/departments`),
     ]);
     const activeClientIds = new Set(clientRes.data.filter(c => c.status === "active").map(c => c._id));
     const activeDeptIds = new Set(deptRes.data.filter(d => d.status === "active").map(d => d._id));
@@ -77,12 +78,12 @@ function LogTime() {
     );
     setTasks(myTasks);
 
-    const entriesRes = await axios.get(`http://localhost:8000/time-entries?week_start=${weekStartStr}`, { headers });
+    const entriesRes = await axios.get(`${API_URL}/time-entries?week_start=${weekStartStr}`, { headers });
     const map = {};
     entriesRes.data.forEach(e => { map[`${e.task_id}_${e.date}`] = e; });
     setEntries(map);
 
-    const subRes = await axios.get("http://localhost:8000/submissions/my", { headers });
+    const subRes = await axios.get(`${API_URL}/submissions/my`, { headers });
     const thisWeek = subRes.data.find(s => s.week_start_date === weekStartStr);
     setSubmission(thisWeek || null);
   };
@@ -98,13 +99,13 @@ function LogTime() {
     if (value === "" || isNaN(value)) {
       setErrorCells(prev => { const next = { ...prev }; delete next[cellKey]; return next; });
       try {
-        await axios.delete(`http://localhost:8000/time-entries/${taskId}/${date}`, { headers });
+        await axios.delete(`${API_URL}/time-entries/${taskId}/${date}`, { headers });
       } catch {}
       return;
     }
     const hours = parseFloat(value);
     try {
-      const res = await axios.post("http://localhost:8000/time-entries",
+      const res = await axios.post(`${API_URL}/time-entries`,
         { task_id: taskId, date, hours }, { headers });
       if (res.data.error) {
         showToast(res.data.error, "error");
@@ -128,7 +129,7 @@ function LogTime() {
   };
 
   const handleSubmitWeek = async () => {
-    const res = await axios.post("http://localhost:8000/submissions/submit-week",
+    const res = await axios.post(`${API_URL}/submissions/submit-week`,
       { week_start_date: weekStartStr }, { headers });
     if (res.data.error) {
       showToast(res.data.error, "error");
@@ -145,7 +146,7 @@ function LogTime() {
     formData.append("file", file);
     formData.append("week_start", weekStartStr);
     try {
-      const res = await axios.post("http://localhost:8000/time-entries/bulk-upload", formData, {
+      const res = await axios.post(`${API_URL}/time-entries/bulk-upload`, formData, {
         headers: { ...headers, "Content-Type": "multipart/form-data" },
       });
       setUploadResult(res.data);
@@ -158,7 +159,7 @@ function LogTime() {
   };
 
   const handleDownloadTemplate = async () => {
-    const res = await axios.get(`http://localhost:8000/time-entries/download-template?week_start=${weekStartStr}`, {
+    const res = await axios.get(`${API_URL}/time-entries/download-template?week_start=${weekStartStr}`, {
       headers, responseType: "blob",
     });
     const url = window.URL.createObjectURL(new Blob([res.data]));

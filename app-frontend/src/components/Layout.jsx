@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { ListTodo, Clock3, LayoutGrid, FileCheck2, BarChart3, Users, Tags, LogOut } from "lucide-react";
 import { T, fontDisplay, fontBody, Avatar } from "../theme";
+import { API_URL } from "../config";
 
 function getUserId() {
   const token = localStorage.getItem("token");
@@ -23,20 +24,20 @@ function Layout({ active, children }) {
     const token = localStorage.getItem("token");
     if (!token) { navigate("/"); return; }
     const headers = { authorization: `Bearer ${token}` };
-    axios.get("http://localhost:8000/auth/me", { headers }).then(res => {
+    axios.get(`${API_URL}/auth/me`, { headers }).then(res => {
       setUserName(res.data.name);
       localStorage.setItem("cachedName", res.data.name);
     });
 
     // Auto-detect manager status: does anyone else have this user as their manager_id?
-    axios.get("http://localhost:8000/users").then(res => {
+    axios.get(`${API_URL}/users`).then(res => {
       const hasDirectReports = res.data.some(u => u.manager_id === userId);
       setIsManager(hasDirectReports);
       localStorage.setItem("cachedIsManager", hasDirectReports);
     });
 
     // Director/CEO access is designation-based, not reporting-line-based
-    axios.get("http://localhost:8000/auth/me", { headers }).then(res => {
+    axios.get(`${API_URL}/auth/me`, { headers }).then(res => {
       const director = ["Director", "Sr. Director", "CEO"].includes(res.data.designation);
       const ceo = res.data.designation === "CEO";
       setIsDirector(director);
