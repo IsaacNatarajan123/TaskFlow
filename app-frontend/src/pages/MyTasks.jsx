@@ -25,6 +25,7 @@ function MyTasks() {
   const [departments, setDepartments] = useState([]);
   const [search, setSearch] = useState("");
   const [filterClient, setFilterClient] = useState("");
+  const [filterDepartment, setFilterDepartment] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -136,6 +137,7 @@ function MyTasks() {
   const filtered = tasks.filter(t => {
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterClient && t.client_id !== filterClient) return false;
+    if (filterDepartment && t.department_id !== filterDepartment) return false;
     if (filterStatus && t.status !== filterStatus) return false;
     return true;
   });
@@ -161,6 +163,10 @@ function MyTasks() {
           <select value={filterClient} onChange={e => setFilterClient(e.target.value)} style={{ ...inputStyle, width: 160 }}>
             <option value="">All Clients</option>
             {clients.filter(c => c.status === "active").map(c => <option key={c._id} value={c._id}>{c.client_name}</option>)}
+          </select>
+          <select value={filterDepartment} onChange={e => setFilterDepartment(e.target.value)} style={{ ...inputStyle, width: 160 }}>
+            <option value="">All Departments</option>
+            {departments.filter(d => d.status === "active").map(d => <option key={d._id} value={d._id}>{d.department_name}</option>)}
           </select>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...inputStyle, width: 150 }}>
             <option value="">All Status</option>

@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from bson import ObjectId
 from database import get_collection
+from auth import get_current_user
 
 router = APIRouter(prefix="/departments", tags=["departments"])
 departments_collection = get_collection("departments")
@@ -10,8 +11,17 @@ class DepartmentCreate(BaseModel):
     department_name: str
     status: str = "active"
 
+async def check_director_access(current_user: str):
+    user = await get_collection("users").find_one({"_id": ObjectId(current_user)})
+    if not user or user.get("designation") not in ["Director", "Sr. Director", "CEO"]:
+        return {"error": "Managing departments is limited to Directors and above"}
+    return None
+
 @router.post("")
-async def create_department(department: DepartmentCreate):
+async def create_department(department: DepartmentCreate, current_user: str = Depends(get_current_user)):
+    access_error = await check_director_access(current_user)
+    if access_error:
+        return access_error
     existing = await departments_collection.find_one({"department_name": department.department_name})
     if existing:
         return {"error": "A department with this name already exists"}
@@ -31,7 +41,10 @@ async def list_departments():
     return departments
 
 @router.patch("/{department_id}")
-async def update_department(department_id: str, department: DepartmentCreate):
+async def update_department(department_id: str, department: DepartmentCreate, current_user: str = Depends(get_current_user)):
+    access_error = await check_director_access(current_user)
+    if access_error:
+        return access_error
     await departments_collection.update_one(
         {"_id": ObjectId(department_id)},
         {"$set": {"department_name": department.department_name, "status": department.status}}
@@ -39,12 +52,18 @@ async def update_department(department_id: str, department: DepartmentCreate):
     return {"message": "Department updated"}
 
 @router.patch("/{department_id}/deactivate")
-async def deactivate_department(department_id: str):
+async def deactivate_department(department_id: str, current_user: str = Depends(get_current_user)):
+    access_error = await check_director_access(current_user)
+    if access_error:
+        return access_error
     await departments_collection.update_one({"_id": ObjectId(department_id)}, {"$set": {"status": "inactive"}})
     return {"message": "Department deactivated"}
 
 @router.delete("/{department_id}")
-async def delete_department(department_id: str):
+async def delete_department(department_id: str, current_user: str = Depends(get_current_user)):
+    access_error = await check_director_access(current_user)
+    if access_error:
+        return access_error
     from database import get_collection as gc
     tasks_collection = gc("tasks")
     in_use = await tasks_collection.count_documents({"department_id": department_id})

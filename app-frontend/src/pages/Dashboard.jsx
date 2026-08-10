@@ -14,10 +14,12 @@ function getUserId() {
 }
 
 function Dashboard() {
+  const [isCEO, setIsCEO] = useState(false);
   const [tab, setTab] = useState("work");
   const [isManager, setIsManager] = useState(false);
   const navigate = useNavigate();
   const userId = getUserId();
+  const token = localStorage.getItem("token");
 
   useEffect(() => {
     if (!userId) { navigate("/"); return; }
@@ -25,10 +27,15 @@ function Dashboard() {
   }, []);
 
   const checkManager = async () => {
-    const res = await axios.get(`${API_URL}/users`);
-    const hasReports = res.data.some(u => u.manager_id === userId);
+    const [usersRes, meRes] = await Promise.all([
+      axios.get(`${API_URL}/users`),
+      axios.get(`${API_URL}/auth/me`, { headers: { authorization: `Bearer ${token}` } }),
+    ]);
+    const hasReports = usersRes.data.some(u => u.manager_id === userId);
+    const ceo = meRes.data.designation === "CEO";
     setIsManager(hasReports);
-    if (hasReports) setTab("team");
+    setIsCEO(ceo);
+    if (hasReports || ceo) setTab("team");
   };
 
   return (
@@ -38,7 +45,7 @@ function Dashboard() {
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: T.textPrimary, fontFamily: fontDisplay, letterSpacing: "-0.02em" }}>
             Dashboard
           </h1>
-          {isManager && (
+          {isManager && !isCEO && (
             <div style={{ display: "flex", gap: 4, background: T.lavender, padding: 4, borderRadius: 10 }}>
               <button onClick={() => setTab("team")} style={{
                 padding: "7px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12.5, fontWeight: 700,

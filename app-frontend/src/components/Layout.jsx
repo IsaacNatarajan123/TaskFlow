@@ -51,15 +51,22 @@ function Layout({ active, children }) {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("cachedName");
+    localStorage.removeItem("cachedIsManager");
+    localStorage.removeItem("cachedIsDirector");
+    localStorage.removeItem("cachedIsCEO");
+    localStorage.removeItem("cachedDesignation");
     navigate("/");
   };
 
-  const employeeItems = [
-    { label: "Dashboard", icon: LayoutGrid, route: "/dashboard" },
-    { label: "Log Time", icon: Clock3, route: "/log-time" },
-    { label: "My Tasks", icon: ListTodo, route: "/my-tasks" },
-    { label: "Submissions", icon: FileCheck2, route: "/submissions" },
-  ];
+  const employeeItems = isCEO
+    ? [{ label: "Dashboard", icon: LayoutGrid, route: "/dashboard" }]
+    : [
+        { label: "Dashboard", icon: LayoutGrid, route: "/dashboard" },
+        { label: "Log Time", icon: Clock3, route: "/log-time" },
+        { label: "My Tasks", icon: ListTodo, route: "/my-tasks" },
+        { label: "Submissions", icon: FileCheck2, route: "/submissions" },
+      ];
   const managerItems = [
     { label: "Approvals", icon: FileCheck2, route: "/approvals" },
   ];

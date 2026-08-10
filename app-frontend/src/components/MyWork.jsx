@@ -47,8 +47,8 @@ function StatCard({ icon: Icon, label, value, accent }) {
   );
 }
 
-// Personal dashboard view — used standalone for employees, and as the "My Work" tab for managers.
 function MyWork() {
+  const isCEO = localStorage.getItem("cachedIsCEO") === "true";
   const [weekHours, setWeekHours] = useState(0);
   const [activeTasks, setActiveTasks] = useState(0);
   const [managerName, setManagerName] = useState("");
@@ -93,51 +93,55 @@ function MyWork() {
         <StatCard icon={UserCircle2} label="Reporting To" value={managerName} accent={T.green} />
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.textPrimary, fontFamily: fontDisplay }}>Recent Tasks</h2>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => navigate("/my-tasks")} style={{ ...btnPrimary, width: "auto", padding: "9px 16px", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-            <Plus size={15} /> Create Task
-          </button>
-          <button onClick={() => navigate("/log-time")} style={{ ...btnPrimary, width: "auto", padding: "9px 16px", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-            <Plus size={15} /> Log Time
-          </button>
-        </div>
-      </div>
-
-      {recentTasks.length === 0 ? (
-        <div style={{ ...cardStyle, textAlign: "center", padding: 36 }}>
-          <p style={{ color: T.textMuted, fontSize: 13.5, margin: 0 }}>No tasks yet — create one from My Tasks to get started.</p>
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {recentTasks.map((t, idx) => (
-            <div key={t._id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center", animation: `fadeIn 0.3s ease ${idx * 0.05}s backwards` }}>
-              <div>
-                <p style={{ margin: "0 0 4px", fontSize: 13.5, fontWeight: 600, color: T.textPrimary }}>{t.title}</p>
-                <p style={{ margin: 0, fontSize: 11.5, color: T.textMuted }}>
-                  {clients[t.client_id] || "—"} · {departments[t.department_id] || "—"} · {t.priority} priority
-                </p>
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                {(() => {
-                  const badge = deadlineBadge(t.deadline, t.status);
-                  return badge ? (
-                    <span style={{ fontSize: 10.5, fontWeight: 700, color: badge.color, background: badge.bg, padding: "3px 10px", borderRadius: 20 }}>{badge.label}</span>
-                  ) : null;
-                })()}
-                <span style={{
-                  fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 20,
-                  color: t.status === "closed" ? T.textMuted : T.primary,
-                  background: t.status === "closed" ? T.border : T.lavender,
-                  textTransform: "capitalize",
-                }}>
-                  {t.status.replace("_", " ")}
-                </span>
-              </div>
+      {!isCEO && (
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.textPrimary, fontFamily: fontDisplay }}>Recent Tasks</h2>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => navigate("/my-tasks")} style={{ ...btnPrimary, width: "auto", padding: "9px 16px", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+                <Plus size={15} /> Create Task
+              </button>
+              <button onClick={() => navigate("/log-time")} style={{ ...btnPrimary, width: "auto", padding: "9px 16px", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+                <Plus size={15} /> Log Time
+              </button>
             </div>
-          ))}
-        </div>
+          </div>
+
+          {recentTasks.length === 0 ? (
+            <div style={{ ...cardStyle, textAlign: "center", padding: 36 }}>
+              <p style={{ color: T.textMuted, fontSize: 13.5, margin: 0 }}>No tasks yet — create one from My Tasks to get started.</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {recentTasks.map((t, idx) => (
+                <div key={t._id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center", animation: `fadeIn 0.3s ease ${idx * 0.05}s backwards` }}>
+                  <div>
+                    <p style={{ margin: "0 0 4px", fontSize: 13.5, fontWeight: 600, color: T.textPrimary }}>{t.title}</p>
+                    <p style={{ margin: 0, fontSize: 11.5, color: T.textMuted }}>
+                      {clients[t.client_id] || "—"} · {departments[t.department_id] || "—"} · {t.priority} priority
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {(() => {
+                      const badge = deadlineBadge(t.deadline, t.status);
+                      return badge ? (
+                        <span style={{ fontSize: 10.5, fontWeight: 700, color: badge.color, background: badge.bg, padding: "3px 10px", borderRadius: 20 }}>{badge.label}</span>
+                      ) : null;
+                    })()}
+                    <span style={{
+                      fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 20,
+                      color: t.status === "closed" ? T.textMuted : T.primary,
+                      background: t.status === "closed" ? T.border : T.lavender,
+                      textTransform: "capitalize",
+                    }}>
+                      {t.status.replace("_", " ")}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </>
   );

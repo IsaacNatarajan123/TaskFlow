@@ -12,8 +12,18 @@ tasks_collection = get_collection("tasks")
 time_entries_collection = get_collection("time_entries")
 submissions_collection = get_collection("weekly_submissions")
 
+async def check_director_access(current_user: str):
+    user = await get_collection("users").find_one({"_id": ObjectId(current_user)})
+    if not user or user.get("designation") not in ["Director", "Sr. Director", "CEO"]:
+        return {"error": "Reports access is limited to Directors and above"}
+    return None
+
 @router.get("/company-wide")
 async def company_wide_report(start_date: str = None, end_date: str = None, current_user: str = Depends(get_current_user)):
+    access_error = await check_director_access(current_user)
+    if access_error:
+        return access_error
+
     # Only entries belonging to Approved submissions count
     approved_cursor = submissions_collection.find({"status": "approved"})
     approved_ids = [str(s["_id"]) async for s in approved_cursor]
@@ -48,6 +58,10 @@ async def company_wide_report(start_date: str = None, end_date: str = None, curr
 
 @router.get("/client/{client_id}")
 async def client_drilldown(client_id: str, start_date: str = None, end_date: str = None, current_user: str = Depends(get_current_user)):
+    access_error = await check_director_access(current_user)
+    if access_error:
+        return access_error
+
     approved_cursor = submissions_collection.find({"status": "approved"})
     approved_ids = [str(s["_id"]) async for s in approved_cursor]
 
@@ -81,6 +95,10 @@ async def client_drilldown(client_id: str, start_date: str = None, end_date: str
 
 @router.get("/company-wide/export")
 async def export_company_wide(start_date: str = None, end_date: str = None, current_user: str = Depends(get_current_user)):
+    access_error = await check_director_access(current_user)
+    if access_error:
+        return access_error
+
     from datetime import datetime, timedelta
 
     approved_cursor = submissions_collection.find({"status": "approved"})

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { Users2, FileClock, ListChecks } from "lucide-react";
-import { T, fontDisplay, cardStyle } from "../theme";
+import { Users2, FileClock, ListChecks, X } from "lucide-react";
+import { T, fontDisplay, cardStyle, Avatar } from "../theme";
 import { API_URL } from "../config";
 
 function getUserId() {
@@ -11,9 +11,9 @@ function getUserId() {
   return JSON.parse(atob(token.split(".")[1])).sub;
 }
 
-function StatCard({ icon: Icon, label, value, accent }) {
+function StatCard({ icon: Icon, label, value, accent, onClick }) {
   return (
-    <div style={{ ...cardStyle, flex: 1, display: "flex", alignItems: "center", gap: 14 }}>
+    <div onClick={onClick} style={{ ...cardStyle, flex: 1, display: "flex", alignItems: "center", gap: 14, cursor: onClick ? "pointer" : "default" }}>
       <div style={{
         width: 44, height: 44, borderRadius: 12, flexShrink: 0,
         background: accent ? `${accent}18` : T.lavender,
@@ -37,7 +37,8 @@ const STATUS_META = {
 
 function MyTeam() {
   const [teamSubs, setTeamSubs] = useState([]);
-  const [teamMemberCount, setTeamMemberCount] = useState(0);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [showTeamList, setShowTeamList] = useState(false);
   const navigate = useNavigate();
   const userId = getUserId();
   const token = localStorage.getItem("token");
@@ -52,7 +53,7 @@ function MyTeam() {
     ]);
     setTeamSubs(subsRes.data);
     const directReports = usersRes.data.filter(u => u.manager_id === userId);
-    setTeamMemberCount(directReports.length);
+    setTeamMembers(directReports);
   };
 
   const pendingCount = teamSubs.filter(s => s.status === "submitted").length;
@@ -60,7 +61,7 @@ function MyTeam() {
   return (
     <>
       <div style={{ display: "flex", gap: 16, marginBottom: 28 }}>
-        <StatCard icon={Users2} label="Team Members" value={teamMemberCount} accent={T.primary} />
+        <StatCard icon={Users2} label="Team Members" value={teamMembers.length} accent={T.primary} onClick={() => setShowTeamList(true)} />
         <StatCard icon={FileClock} label="Pending Approvals" value={pendingCount} accent={T.amber} />
         <StatCard icon={ListChecks} label="Total Submissions" value={teamSubs.length} accent={T.green} />
       </div>
@@ -91,6 +92,27 @@ function MyTeam() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {showTeamList && (
+        <div onClick={() => setShowTeamList(false)} style={{ position: "fixed", inset: 0, background: "rgba(30,27,46,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
+          <div onClick={e => e.stopPropagation()} style={{ ...cardStyle, width: 380, maxHeight: "70vh", overflowY: "auto", position: "relative" }}>
+            <button onClick={() => setShowTeamList(false)} style={{ position: "absolute", top: 18, right: 18, background: "none", border: "none", cursor: "pointer", color: T.textMuted }}><X size={18} /></button>
+            <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 800, color: T.textPrimary, fontFamily: fontDisplay }}>Team Members</h3>
+            {teamMembers.length === 0 ? (
+              <p style={{ fontSize: 13, color: T.textMuted }}>No direct reports.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {teamMembers.map(m => (
+                  <div key={m.user_id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
+                    <Avatar initials={m.name ? m.name.slice(0, 2).toUpperCase() : "??"} size={32} />
+                    <span style={{ fontSize: 13.5, color: T.textPrimary, fontWeight: 600 }}>{m.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </>

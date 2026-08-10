@@ -86,6 +86,9 @@ class ReturnRequest(BaseModel):
 
 @router.post("/{submission_id}/approve")
 async def approve_submission(submission_id: str, current_user: str = Depends(get_current_user)):
+    approver = await users_collection.find_one({"_id": ObjectId(current_user)})
+    if approver and approver.get("designation") == "CEO":
+        return {"error": "CEO accounts do not approve submissions"}
     sub = await submissions_collection.find_one({"_id": ObjectId(submission_id)})
     if not sub:
         return {"error": "Submission not found"}
@@ -104,6 +107,9 @@ async def approve_submission(submission_id: str, current_user: str = Depends(get
 
 @router.post("/{submission_id}/return")
 async def return_submission(submission_id: str, req: ReturnRequest, current_user: str = Depends(get_current_user)):
+    approver = await users_collection.find_one({"_id": ObjectId(current_user)})
+    if approver and approver.get("designation") == "CEO":
+        return {"error": "CEO accounts do not return submissions"}
     if not req.comment.strip():
         return {"error": "A comment is required to return a submission"}
 

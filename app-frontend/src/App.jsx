@@ -11,6 +11,7 @@ import Approvals from "./pages/Approvals";
 import Reports from "./pages/Reports";
 import ManageClients from "./pages/ManageClients";
 import ManageDepartments from "./pages/ManageDepartments";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
@@ -24,10 +25,31 @@ function App() {
         <Route path="/log-time" element={<LogTime />} />
         <Route path="/my-tasks" element={<MyTasks />} />
         <Route path="/submissions" element={<Submissions />} />
-        <Route path="/approvals" element={<Approvals />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/manage-clients" element={<ManageClients />} />
-        <Route path="/manage-departments" element={<ManageDepartments />} />
+        <Route path="/approvals" element={
+          <ProtectedRoute requireManager>
+            <Approvals />
+          </ProtectedRoute>
+        } />
+        <Route path="/reports" element={
+          <ProtectedRoute requireDirector>
+            <Reports />
+          </ProtectedRoute>
+        } />
+        <Route path="/manage-clients" element={
+          <ProtectedRoute requireDirector>
+            <ManageClients />
+          </ProtectedRoute>
+        } />
+        <Route path="/clients" element={
+          <ProtectedRoute requireDirector>
+            <ManageClients />
+          </ProtectedRoute>
+        } />
+        <Route path="/manage-departments" element={
+          <ProtectedRoute requireDirector>
+            <ManageDepartments />
+          </ProtectedRoute>
+        } />
       </Routes>
     </BrowserRouter>
   );
