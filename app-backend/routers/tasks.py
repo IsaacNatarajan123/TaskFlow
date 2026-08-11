@@ -6,6 +6,7 @@ from auth import get_current_user
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 tasks_collection = get_collection("tasks")
+users_collection = get_collection("users")
 
 class TaskCreate(BaseModel):
     title: str
@@ -19,7 +20,7 @@ class TaskCreate(BaseModel):
 
 @router.post("")
 async def create_task(task: TaskCreate, current_user: str = Depends(get_current_user)):
-    user = await get_collection("users").find_one({"_id": ObjectId(current_user)})
+    user = await users_collection.find_one({"_id": ObjectId(current_user)})
     if user and user.get("designation") == "CEO":
         return {"error": "CEO accounts do not create or manage tasks"}
 
@@ -38,7 +39,7 @@ async def create_task(task: TaskCreate, current_user: str = Depends(get_current_
     return {"message": "Task created", "id": str(result.inserted_id)}
 
 @router.get("")
-async def list_tasks(client_id: str = None, department_id: str = None, status: str = None):
+async def list_tasks(client_id: str = None, department_id: str = None, status: str = None, current_user: str = Depends(get_current_user)):
     query = {}
     if client_id: query["client_id"] = client_id
     if department_id: query["department_id"] = department_id
@@ -49,6 +50,40 @@ async def list_tasks(client_id: str = None, department_id: str = None, status: s
         t["_id"] = str(t["_id"])
         tasks.append(t)
     return tasks
+
+@router.get("/timeline")
+async def personal_timeline(current_user: str = Depends(get_current_user)):
+    cursor = tasks_collection.find({"created_by": current_user})
+    scheduled = []
+    unscheduled = []
+    async for t in cursor:
+        t["_id"] = str(t["_id"])
+        if t.get("start_date") and t.get("deadline"):
+            scheduled.append(t)
+        else:
+            unscheduled.append(t)
+    return {"scheduled": scheduled, "unscheduled": unscheduled}
+
+@router.get("/team-timeline")
+async def team_timeline(current_user: str = Depends(get_current_user)):
+    reports_cursor = users_collection.find({"manager_id": current_user})
+    report_ids = [str(u["_id"]) async for u in reports_cursor]
+
+    if not report_ids:
+        return {"scheduled": [], "unscheduled": []}
+
+    cursor = tasks_collection.find({"created_by": {"$in": report_ids}})
+    scheduled = []
+    unscheduled = []
+    async for t in cursor:
+        t["_id"] = str(t["_id"])
+        owner = await users_collection.find_one({"_id": ObjectId(t["created_by"])})
+        t["owner_name"] = owner["name"] if owner else "Unknown"
+        if t.get("start_date") and t.get("deadline"):
+            scheduled.append(t)
+        else:
+            unscheduled.append(t)
+    return {"scheduled": scheduled, "unscheduled": unscheduled}
 
 class TaskUpdate(BaseModel):
     title: str = None

@@ -12,6 +12,7 @@ import Reports from "./pages/Reports";
 import ManageClients from "./pages/ManageClients";
 import ManageDepartments from "./pages/ManageDepartments";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Timeline from "./pages/Timeline";
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/log-time" element={<LogTime />} />
         <Route path="/my-tasks" element={<MyTasks />} />
+        <Route path="/timeline" element={<Timeline />} />
         <Route path="/submissions" element={<Submissions />} />
         <Route path="/approvals" element={
           <ProtectedRoute requireManager>
