@@ -77,9 +77,9 @@ function Submissions() {
   const load = async () => {
     const [subsRes, tasksRes, clientsRes, deptsRes] = await Promise.all([
       axios.get(`${API_URL}/submissions/my`, { headers }),
-      axios.get(`${API_URL}/tasks`),
-      axios.get(`${API_URL}/clients`),
-      axios.get(`${API_URL}/departments`),
+      axios.get(`${API_URL}/tasks`, { headers }),
+      axios.get(`${API_URL}/clients`, { headers }),
+      axios.get(`${API_URL}/departments`, { headers }),
     ]);
     const sorted = subsRes.data.sort((a, b) => b.week_start_date.localeCompare(a.week_start_date));
     setSubs(sorted);

@@ -63,9 +63,9 @@ function Approvals() {
     setComment("");
 
     const [tasksRes, clientsRes, deptsRes, entriesRes] = await Promise.all([
-      axios.get(`${API_URL}/tasks`),
-      axios.get(`${API_URL}/clients`),
-      axios.get(`${API_URL}/departments`),
+      axios.get(`${API_URL}/tasks`, { headers }),
+      axios.get(`${API_URL}/clients`, { headers }),
+      axios.get(`${API_URL}/departments`, { headers }),
       axios.get(`${API_URL}/time-entries/by-submission/${sub._id}`, { headers }).catch(() => ({ data: [] })),
     ]);
 

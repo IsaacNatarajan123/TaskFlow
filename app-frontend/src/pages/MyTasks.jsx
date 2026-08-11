@@ -23,6 +23,7 @@ function MyTasks() {
   const [tasks, setTasks] = useState([]);
   const [clients, setClients] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [stories, setStories] = useState([]);
   const [search, setSearch] = useState("");
   const [filterClient, setFilterClient] = useState("");
   const [filterDepartment, setFilterDepartment] = useState("");
@@ -39,7 +40,7 @@ function MyTasks() {
 
   const [form, setForm] = useState({
     title: "", description: "", client_id: "", department_id: "",
-    priority: "Medium", start_date: "", deadline: "", status: "open",
+    priority: "Medium", start_date: "", deadline: "", status: "open", story_id: "", depends_on_task_id: "",
   });
 
   const showToast = (msg, type = "success") => {
@@ -54,18 +55,25 @@ function MyTasks() {
   }, []);
 
   const loadAll = async () => {
-    const [taskRes, clientRes, deptRes] = await Promise.all([
-      axios.get(`${API_URL}/tasks`),
-      axios.get(`${API_URL}/clients`),
-      axios.get(`${API_URL}/departments`),
+    const [taskRes, clientRes, deptRes, storiesRes] = await Promise.all([
+      axios.get(`${API_URL}/tasks`, { headers }),
+      axios.get(`${API_URL}/clients`, { headers }),
+      axios.get(`${API_URL}/departments`, { headers }),
+      axios.get(`${API_URL}/epics/stories/all`, { headers }),
     ]);
     setTasks(taskRes.data.filter(t => t.created_by === userId));
     setClients(clientRes.data);
     setDepartments(deptRes.data);
+    setStories(storiesRes.data);
   };
 
   const clientName = (id) => clients.find(c => c._id === id)?.client_name || "—";
   const departmentName = (id) => departments.find(d => d._id === id)?.department_name || "—";
+  const storyLabel = (id) => {
+    const s = stories.find(s => s._id === id);
+    return s ? `${s.epic_title} — ${s.title}` : null;
+  };
+  const dependencyTask = (id) => tasks.find(t => t._id === id);
 
   const deadlineBadge = (deadline, status) => {
     if (!deadline || status === "closed") return null;
@@ -79,7 +87,7 @@ function MyTasks() {
 
   const openCreate = () => {
     setEditingTask(null);
-    setForm({ title: "", description: "", client_id: "", department_id: "", priority: "Medium", start_date: "", deadline: "", status: "open" });
+    setForm({ title: "", description: "", client_id: "", department_id: "", priority: "Medium", start_date: "", deadline: "", status: "open", story_id: "", depends_on_task_id: "" });
     setShowModal(true);
   };
 
@@ -89,6 +97,8 @@ function MyTasks() {
       title: task.title, description: task.description || "",
       client_id: task.client_id, department_id: task.department_id,
       priority: task.priority, start_date: task.start_date, deadline: task.deadline, status: task.status,
+      story_id: task.story_id || "",
+      depends_on_task_id: task.depends_on_task_id || "",
     });
     setShowModal(true);
   };
@@ -102,13 +112,14 @@ function MyTasks() {
       showToast("Deadline cannot be before start date", "error");
       return;
     }
+    const payload = { ...form, story_id: form.story_id || null, depends_on_task_id: form.depends_on_task_id || null };
     try {
       if (editingTask) {
-        const res = await axios.patch(`${API_URL}/tasks/${editingTask._id}`, form, { headers });
+        const res = await axios.patch(`${API_URL}/tasks/${editingTask._id}`, payload, { headers });
         if (res.data.error) { showToast(res.data.error, "error"); return; }
         showToast("Task updated", "success");
       } else {
-        const res = await axios.post(`${API_URL}/tasks`, form, { headers });
+        const res = await axios.post(`${API_URL}/tasks`, payload, { headers });
         if (res.data.error) { showToast(res.data.error, "error"); return; }
         showToast("Task created", "success");
       }
@@ -201,6 +212,16 @@ function MyTasks() {
                       <p style={{ margin: 0, fontSize: 12, color: T.textMuted }}>
                         {clientName(t.client_id)} · {departmentName(t.department_id)} · {t.priority} priority
                       </p>
+                      {t.story_id && storyLabel(t.story_id) && (
+                        <p style={{ margin: "4px 0 0", fontSize: 11, color: T.primary, fontWeight: 600 }}>
+                          🔗 {storyLabel(t.story_id)}
+                        </p>
+                      )}
+                      {t.depends_on_task_id && dependencyTask(t.depends_on_task_id) && (
+                        <p style={{ margin: "4px 0 0", fontSize: 11, color: T.textSecondary }}>
+                          ⛓ Depends on: {dependencyTask(t.depends_on_task_id).title} ({STATUS_META[dependencyTask(t.depends_on_task_id).status]?.label || dependencyTask(t.depends_on_task_id).status})
+                        </p>
+                      )}
                       {clients.find(c => c._id === t.client_id)?.status === "inactive" && (
                         <p style={{ margin: "4px 0 0", fontSize: 11, color: T.coral, fontWeight: 600 }}>
                           ⚠ Client "{clientName(t.client_id)}" has been deactivated — no new hours can be logged
@@ -235,7 +256,7 @@ function MyTasks() {
 
       {showModal && (
         <div onClick={() => setShowModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(30,27,46,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
-          <div onClick={e => e.stopPropagation()} style={{ ...cardStyle, width: 440, animation: "popIn 0.15s ease" }}>
+          <div onClick={e => e.stopPropagation()} style={{ ...cardStyle, width: 440, maxHeight: "85vh", overflowY: "auto", animation: "popIn 0.15s ease" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: T.textPrimary, fontFamily: fontDisplay }}>
                 {editingTask ? "Edit Task" : "Create Task"}
@@ -265,6 +286,18 @@ function MyTasks() {
                 </select>
               </div>
             </div>
+
+            <label style={labelStyle}>Link to Story (optional)</label>
+            <select value={form.story_id} onChange={e => setForm({ ...form, story_id: e.target.value })} style={{ ...inputStyle, marginBottom: 14 }}>
+              <option value="">None</option>
+              {stories.map(s => <option key={s._id} value={s._id}>{s.epic_title} — {s.title}</option>)}
+            </select>
+
+            <label style={labelStyle}>Depends on (optional)</label>
+            <select value={form.depends_on_task_id} onChange={e => setForm({ ...form, depends_on_task_id: e.target.value })} style={{ ...inputStyle, marginBottom: 14 }}>
+              <option value="">None</option>
+              {tasks.filter(t => !editingTask || t._id !== editingTask._id).map(t => <option key={t._id} value={t._id}>{t.title}</option>)}
+            </select>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
               <div>

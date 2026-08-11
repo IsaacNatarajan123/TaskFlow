@@ -49,7 +49,7 @@ function MyTeam() {
   const load = async () => {
     const [subsRes, usersRes] = await Promise.all([
       axios.get(`${API_URL}/submissions`, { headers }),
-      axios.get(`${API_URL}/users`),
+      axios.get(`${API_URL}/users`, { headers }),
     ]);
     setTeamSubs(subsRes.data);
     const directReports = usersRes.data.filter(u => u.manager_id === userId);

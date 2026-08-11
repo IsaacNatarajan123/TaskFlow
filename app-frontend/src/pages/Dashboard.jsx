@@ -28,7 +28,7 @@ function Dashboard() {
 
   const checkManager = async () => {
     const [usersRes, meRes] = await Promise.all([
-      axios.get(`${API_URL}/users`),
+      axios.get(`${API_URL}/users`, { headers: { authorization: `Bearer ${token}` } }),
       axios.get(`${API_URL}/auth/me`, { headers: { authorization: `Bearer ${token}` } }),
     ]);
     const hasReports = usersRes.data.some(u => u.manager_id === userId);

@@ -48,7 +48,7 @@ function StatCard({ icon: Icon, label, value, accent }) {
 }
 
 function MyWork() {
-  const isCEO = localStorage.getItem("cachedIsCEO") === "true";
+  const [isCEO, setIsCEO] = useState(false);
   const [weekHours, setWeekHours] = useState(0);
   const [activeTasks, setActiveTasks] = useState(0);
   const [managerName, setManagerName] = useState("");
@@ -65,15 +65,16 @@ function MyWork() {
   const load = async () => {
     const me = await axios.get(`${API_URL}/auth/me`, { headers });
     setManagerName(me.data.manager_name || "Not assigned");
+    setIsCEO(me.data.designation === "CEO");
 
     const weekStart = getMonday();
     const entries = await axios.get(`${API_URL}/time-entries?week_start=${weekStart}`, { headers });
     setWeekHours(entries.data.reduce((sum, e) => sum + e.hours, 0));
 
     const [tasks, clientsRes, deptsRes] = await Promise.all([
-      axios.get(`${API_URL}/tasks`),
-      axios.get(`${API_URL}/clients`),
-      axios.get(`${API_URL}/departments`),
+      axios.get(`${API_URL}/tasks`, { headers }),
+      axios.get(`${API_URL}/clients`, { headers }),
+      axios.get(`${API_URL}/departments`, { headers }),
     ]);
     const myTasks = tasks.data.filter(t => t.created_by === userId);
     setActiveTasks(myTasks.filter(t => t.status !== "closed").length);

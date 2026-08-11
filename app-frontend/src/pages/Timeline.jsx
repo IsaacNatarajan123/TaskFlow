@@ -29,10 +29,16 @@ function Timeline() {
   const headers = { authorization: `Bearer ${token}` };
 
   useEffect(() => {
-    const cachedIsManager = localStorage.getItem("cachedIsManager") === "true";
-    setIsManager(cachedIsManager);
+    checkManagerStatus();
     load("personal");
   }, []);
+
+  const checkManagerStatus = async () => {
+    const userId = JSON.parse(atob(token.split(".")[1])).sub;
+    const res = await axios.get(`${API_URL}/users`, { headers });
+    const hasReports = res.data.some(u => u.manager_id === userId);
+    setIsManager(hasReports);
+  };
 
   const load = async (v) => {
     const endpoint = v === "team" ? "team-timeline" : "timeline";
@@ -133,6 +139,15 @@ function Timeline() {
         ) : (
           <div style={{ ...cardStyle, padding: "20px 24px 24px", marginBottom: 20, position: "relative", overflow: "hidden" }}>
 
+            {/* Today label row — its own dedicated row, above the ruler, so it never overlaps date text */}
+            <div style={{ position: "relative", height: 16, marginBottom: 4 }}>
+              {todayOffset >= 0 && todayOffset <= 100 && (
+                <div style={{ position: "absolute", left: `${todayOffset}%`, transform: "translateX(-50%)", fontSize: 10, fontWeight: 700, color: T.coral, whiteSpace: "nowrap" }}>
+                  ▼ Today
+                </div>
+              )}
+            </div>
+
             {/* Date ruler */}
             <div style={{ position: "relative", height: 20, marginBottom: 12, borderBottom: `1px solid ${T.border}` }}>
               {weekMarkers.map((d, i) => {
@@ -146,14 +161,9 @@ function Timeline() {
               })}
             </div>
 
-            {/* Today marker line, spans the chart body */}
+            {/* Today marker line — only the vertical line now, spanning through the bars below */}
             {todayOffset >= 0 && todayOffset <= 100 && (
-              <>
-                <div style={{ position: "absolute", top: 44, bottom: 20, left: `${todayOffset}%`, width: 2, background: T.coral, zIndex: 1 }} />
-                <div style={{ position: "absolute", top: 30, left: `${todayOffset}%`, transform: "translateX(-50%)", fontSize: 10, fontWeight: 700, color: T.coral, background: "#fff", padding: "0 4px" }}>
-                  Today
-                </div>
-              </>
+              <div style={{ position: "absolute", top: 40, bottom: 20, left: `${todayOffset}%`, width: 2, background: T.coral, zIndex: 1 }} />
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 18, marginTop: 16 }}>

@@ -66,9 +66,9 @@ function LogTime() {
 
   const load = async () => {
     const [taskRes, clientRes, deptRes] = await Promise.all([
-      axios.get(`${API_URL}/tasks`),
-      axios.get(`${API_URL}/clients`),
-      axios.get(`${API_URL}/departments`),
+      axios.get(`${API_URL}/tasks`, { headers }),
+      axios.get(`${API_URL}/clients`, { headers }),
+      axios.get(`${API_URL}/departments`, { headers }),
     ]);
     const activeClientIds = new Set(clientRes.data.filter(c => c.status === "active").map(c => c._id));
     const activeDeptIds = new Set(deptRes.data.filter(d => d.status === "active").map(d => d._id));
