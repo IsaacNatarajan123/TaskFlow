@@ -13,8 +13,17 @@ function getUserId() {
 // before rendering — never trusts cached/localStorage values, since those
 // can be stale after switching accounts (see the Dashboard tab bug).
 function ProtectedRoute({ requireManager, requireDirector, children }) {
-  const [loading, setLoading] = useState(true);
-  const [allowed, setAllowed] = useState(false);
+  const cachedIsManager = localStorage.getItem("cachedIsManager") === "true";
+  const cachedIsDirector = localStorage.getItem("cachedIsDirector") === "true";
+  const cachedIsCEO = localStorage.getItem("cachedIsCEO") === "true";
+  const optimisticAllowed = requireDirector
+    ? cachedIsDirector
+    : requireManager
+      ? (cachedIsManager && !cachedIsCEO)
+      : true;
+
+  const [loading, setLoading] = useState(false);
+  const [allowed, setAllowed] = useState(optimisticAllowed);
   const userId = getUserId();
   const token = localStorage.getItem("token");
   const headers = { authorization: `Bearer ${token}` };
@@ -27,7 +36,7 @@ function ProtectedRoute({ requireManager, requireDirector, children }) {
     try {
       const [meRes, usersRes] = await Promise.all([
         axios.get(`${API_URL}/auth/me`, { headers }),
-        axios.get(`${API_URL}/users`),
+        axios.get(`${API_URL}/users`, { headers }),
       ]);
       const designation = meRes.data.designation;
       const isDirector = ["Director", "Sr. Director", "CEO"].includes(designation);
@@ -46,8 +55,6 @@ function ProtectedRoute({ requireManager, requireDirector, children }) {
     }
     setLoading(false);
   };
-
-  if (loading) return null;
 
   if (!allowed) {
     return (

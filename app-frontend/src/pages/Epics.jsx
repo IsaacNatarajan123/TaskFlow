@@ -91,7 +91,7 @@ function Epics() {
     const res = await axios.delete(`${API_URL}/epics/${epicId}`, { headers });
     setConfirmDeleteEpic(null);
     if (res.data.error) { showToast(res.data.error, "error"); return; }
-    showToast("Epic deleted", "success");
+    showToast("Epic deleted", "error");
     if (expandedEpic === epicId) setExpandedEpic(null);
     load();
   };

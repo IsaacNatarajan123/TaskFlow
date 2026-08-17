@@ -18,8 +18,8 @@ class TaskCreate(BaseModel):
     start_date: str = None
     deadline: str = None
     status: str = "open"
-    story_id: str = None
-    depends_on_task_id: str = None
+    story_id: Optional[str] = None
+    depends_on_task_id: Optional[str] = None
 
 @router.post("")
 async def create_task(task: TaskCreate, current_user: str = Depends(get_current_user)):

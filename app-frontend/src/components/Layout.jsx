@@ -30,7 +30,7 @@ function Layout({ active, children }) {
     });
 
     // Auto-detect manager status: does anyone else have this user as their manager_id?
-    axios.get(`${API_URL}/users`).then(res => {
+    axios.get(`${API_URL}/users`, { headers }).then(res => {
       const hasDirectReports = res.data.some(u => u.manager_id === userId);
       setIsManager(hasDirectReports);
       localStorage.setItem("cachedIsManager", hasDirectReports);

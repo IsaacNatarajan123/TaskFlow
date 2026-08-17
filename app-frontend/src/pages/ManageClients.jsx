@@ -14,6 +14,8 @@ function ManageClients() {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState("success");
+  const token = localStorage.getItem("token");
+  const headers = { authorization: `Bearer ${token}` };
 
   const showToast = (msg, type = "success") => {
     setToastType(type);
@@ -24,7 +26,7 @@ function ManageClients() {
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    const res = await axios.get(`${API_URL}/clients`);
+    const res = await axios.get(`${API_URL}/clients`, { headers });
     setClients(res.data);
   };
 
@@ -46,10 +48,10 @@ function ManageClients() {
     if (!name.trim()) { showToast("Client name is required", "error"); return; }
     try {
       if (editing) {
-        await axios.patch(`${API_URL}/clients/${editing._id}`, { client_name: name, status });
+        await axios.patch(`${API_URL}/clients/${editing._id}`, { client_name: name, status }, { headers });
         showToast("Client updated", "success");
       } else {
-        const res = await axios.post(`${API_URL}/clients`, { client_name: name, status });
+        const res = await axios.post(`${API_URL}/clients`, { client_name: name, status }, { headers });
         if (res.data.error) { showToast(res.data.error, "error"); return; }
         showToast("Client created", "success");
       }
@@ -61,19 +63,19 @@ function ManageClients() {
   };
 
   const handleDelete = async (id) => {
-    const res = await axios.delete(`${API_URL}/clients/${id}`);
+    const res = await axios.delete(`${API_URL}/clients/${id}`, { headers });
     setConfirmDeleteId(null);
     if (res.data.error) { showToast(res.data.error, "error"); return; }
-    showToast("Client deleted", "success");
+    showToast("Client deleted", "error");
     load();
   };
 
   const handleToggleStatus = async (c) => {
     if (c.status === "active") {
-      await axios.patch(`${API_URL}/clients/${c._id}/deactivate`);
+      await axios.patch(`${API_URL}/clients/${c._id}/deactivate`, {}, { headers });
       showToast("Client deactivated", "success");
     } else {
-      await axios.patch(`${API_URL}/clients/${c._id}`, { client_name: c.client_name, status: "active" });
+      await axios.patch(`${API_URL}/clients/${c._id}`, { client_name: c.client_name, status: "active" }, { headers });
       showToast("Client activated", "success");
     }
     load();

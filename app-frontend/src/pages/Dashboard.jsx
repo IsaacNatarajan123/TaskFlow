@@ -14,9 +14,11 @@ function getUserId() {
 }
 
 function Dashboard() {
-  const [isCEO, setIsCEO] = useState(false);
-  const [tab, setTab] = useState("work");
-  const [isManager, setIsManager] = useState(false);
+  const cachedIsCEO = localStorage.getItem("cachedIsCEO") === "true";
+  const cachedIsManager = localStorage.getItem("cachedIsManager") === "true";
+  const [isCEO, setIsCEO] = useState(cachedIsCEO);
+  const [tab, setTab] = useState((cachedIsManager || cachedIsCEO) ? "team" : "work");
+  const [isManager, setIsManager] = useState(cachedIsManager);
   const navigate = useNavigate();
   const userId = getUserId();
   const token = localStorage.getItem("token");

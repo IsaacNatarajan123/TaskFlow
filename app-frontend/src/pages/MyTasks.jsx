@@ -141,7 +141,7 @@ function MyTasks() {
     const res = await axios.delete(`${API_URL}/tasks/${taskId}`, { headers });
     setConfirmDeleteId(null);
     if (res.data.error) { showToast(res.data.error, "error"); return; }
-    showToast("Task deleted", "success");
+    showToast("Task deleted", "error");
     loadAll();
   };
 

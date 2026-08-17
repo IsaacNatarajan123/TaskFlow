@@ -77,6 +77,44 @@ async def get_week_entries(week_start: str, current_user: str = Depends(get_curr
         entries.append(e)
     return entries
 
+@router.get("/team-workload")
+async def team_workload(current_user: str = Depends(get_current_user)):
+    from datetime import datetime, timedelta
+
+    users_collection = get_collection("users")
+    reports_cursor = users_collection.find({"manager_id": current_user})
+    reports = [{"user_id": str(u["_id"]), "name": u["name"]} async for u in reports_cursor]
+
+    if not reports:
+        return {"members": [], "week_start": None, "week_end": None}
+
+    today = datetime.now()
+    week_start = (today - timedelta(days=today.weekday())).strftime("%Y-%m-%d")
+    week_end = (today + timedelta(days=6 - today.weekday())).strftime("%Y-%m-%d")
+
+    report_ids = [r["user_id"] for r in reports]
+    entries_cursor = time_entries_collection.find({
+        "user_id": {"$in": report_ids},
+        "date": {"$gte": week_start, "$lte": week_end}
+    })
+    entries = [e async for e in entries_cursor]
+
+    members = []
+    for r in reports:
+        member_entries = [e for e in entries if e["user_id"] == r["user_id"]]
+        by_day = {}
+        for e in member_entries:
+            by_day[e["date"]] = by_day.get(e["date"], 0) + e["hours"]
+        total = sum(by_day.values())
+        members.append({
+            "user_id": r["user_id"],
+            "name": r["name"],
+            "by_day": by_day,
+            "total_hours": total,
+        })
+
+    return {"members": members, "week_start": week_start, "week_end": week_end}
+
 @router.get("/by-submission/{submission_id}")
 async def get_entries_by_submission(submission_id: str, current_user: str = Depends(get_current_user)):
     from database import get_collection as gc
