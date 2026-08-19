@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 import logging
 import time
 from prometheus_fastapi_instrumentator import Instrumentator
-from routers import clients, departments, tasks, time_entries, submissions, reports, epics
+from routers import clients, departments, tasks, time_entries, submissions, reports
 from bson import ObjectId
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -48,7 +48,6 @@ app.include_router(tasks.router)
 app.include_router(time_entries.router)
 app.include_router(submissions.router)
 app.include_router(reports.router)
-app.include_router(epics.router)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger("kanban-api")

@@ -12,8 +12,6 @@ import Reports from "./pages/Reports";
 import ManageClients from "./pages/ManageClients";
 import ManageDepartments from "./pages/ManageDepartments";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Timeline from "./pages/Timeline";
-import Epics from "./pages/Epics";
 
 function App() {
   return (
@@ -25,10 +23,8 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/log-time" element={<LogTime />} />
-        <Route path="/my-tasks" element={<MyTasks />} />
-        <Route path="/timeline" element={<Timeline />} />
+        <Route path="/my-tasks" element={<MyTasks />} />      
         <Route path="/submissions" element={<Submissions />} />
-        <Route path="/epics" element={<Epics />} />
         <Route path="/approvals" element={
           <ProtectedRoute requireManager>
             <Approvals />

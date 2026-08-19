@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from typing import Optional
 from bson import ObjectId
 from database import get_collection
 from auth import get_current_user
@@ -18,19 +17,12 @@ class TaskCreate(BaseModel):
     start_date: str = None
     deadline: str = None
     status: str = "open"
-    story_id: Optional[str] = None
-    depends_on_task_id: Optional[str] = None
 
 @router.post("")
 async def create_task(task: TaskCreate, current_user: str = Depends(get_current_user)):
     user = await users_collection.find_one({"_id": ObjectId(current_user)})
     if user and user.get("designation") == "CEO":
         return {"error": "CEO accounts do not create or manage tasks"}
-
-    if task.depends_on_task_id:
-        dep = await tasks_collection.find_one({"_id": ObjectId(task.depends_on_task_id)})
-        if not dep:
-            return {"error": "The task you're trying to depend on doesn't exist"}
 
     new_task = {
         "title": task.title,
@@ -41,8 +33,6 @@ async def create_task(task: TaskCreate, current_user: str = Depends(get_current_
         "start_date": task.start_date,
         "deadline": task.deadline,
         "status": task.status,
-        "story_id": task.story_id,
-        "depends_on_task_id": task.depends_on_task_id,
         "created_by": current_user
     }
     result = await tasks_collection.insert_one(new_task)
@@ -61,40 +51,6 @@ async def list_tasks(client_id: str = None, department_id: str = None, status: s
         tasks.append(t)
     return tasks
 
-@router.get("/timeline")
-async def personal_timeline(current_user: str = Depends(get_current_user)):
-    cursor = tasks_collection.find({"created_by": current_user})
-    scheduled = []
-    unscheduled = []
-    async for t in cursor:
-        t["_id"] = str(t["_id"])
-        if t.get("start_date") and t.get("deadline"):
-            scheduled.append(t)
-        else:
-            unscheduled.append(t)
-    return {"scheduled": scheduled, "unscheduled": unscheduled}
-
-@router.get("/team-timeline")
-async def team_timeline(current_user: str = Depends(get_current_user)):
-    reports_cursor = users_collection.find({"manager_id": current_user})
-    report_ids = [str(u["_id"]) async for u in reports_cursor]
-
-    if not report_ids:
-        return {"scheduled": [], "unscheduled": []}
-
-    cursor = tasks_collection.find({"created_by": {"$in": report_ids}})
-    scheduled = []
-    unscheduled = []
-    async for t in cursor:
-        t["_id"] = str(t["_id"])
-        owner = await users_collection.find_one({"_id": ObjectId(t["created_by"])})
-        t["owner_name"] = owner["name"] if owner else "Unknown"
-        if t.get("start_date") and t.get("deadline"):
-            scheduled.append(t)
-        else:
-            unscheduled.append(t)
-    return {"scheduled": scheduled, "unscheduled": unscheduled}
-
 class TaskUpdate(BaseModel):
     title: str = None
     description: str = None
@@ -102,8 +58,6 @@ class TaskUpdate(BaseModel):
     start_date: str = None
     deadline: str = None
     status: str = None
-    story_id: Optional[str] = None
-    depends_on_task_id: Optional[str] = None
 
 @router.patch("/{task_id}")
 async def update_task(task_id: str, update: TaskUpdate, current_user: str = Depends(get_current_user)):
@@ -112,24 +66,7 @@ async def update_task(task_id: str, update: TaskUpdate, current_user: str = Depe
         return {"error": "Task not found"}
     if task["created_by"] != current_user:
         return {"error": "Only the task creator can edit this task"}
-
-    update_dict = update.dict()
-
-    if update_dict.get("depends_on_task_id"):
-        if update_dict["depends_on_task_id"] == task_id:
-            return {"error": "A task cannot depend on itself"}
-        dep = await tasks_collection.find_one({"_id": ObjectId(update_dict["depends_on_task_id"])})
-        if not dep:
-            return {"error": "The task you're trying to depend on doesn't exist"}
-
-    # story_id and depends_on_task_id are always applied as sent, including null (unlinking),
-    # since "no story" / "no dependency" are real, valid states — unlike other fields,
-    # which mean "don't change this" when omitted.
-    passthrough = ["story_id", "depends_on_task_id"]
-    fields = {k: v for k, v in update_dict.items() if v is not None and k not in passthrough}
-    for k in passthrough:
-        fields[k] = update_dict.get(k)
-
+    fields = {k: v for k, v in update.dict().items() if v is not None}
     await tasks_collection.update_one({"_id": ObjectId(task_id)}, {"$set": fields})
     return {"message": "Task updated"}
 

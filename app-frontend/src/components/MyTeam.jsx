@@ -35,12 +35,9 @@ const STATUS_META = {
   returned: { label: "Returned", color: T.coral, bg: "#FEE2E2" },
 };
 
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
 function MyTeam() {
   const [teamSubs, setTeamSubs] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
-  const [workload, setWorkload] = useState({ members: [], week_start: null, week_end: null });
   const [showTeamList, setShowTeamList] = useState(false);
   const navigate = useNavigate();
   const userId = getUserId();
@@ -50,25 +47,13 @@ function MyTeam() {
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    const [subsRes, usersRes, workloadRes] = await Promise.all([
+    const [subsRes, usersRes] = await Promise.all([
       axios.get(`${API_URL}/submissions`, { headers }),
       axios.get(`${API_URL}/users`, { headers }),
-      axios.get(`${API_URL}/time-entries/team-workload`, { headers }),
     ]);
     setTeamSubs(subsRes.data);
     const directReports = usersRes.data.filter(u => u.manager_id === userId);
     setTeamMembers(directReports);
-    setWorkload(workloadRes.data);
-  };
-
-  const weekDates = () => {
-    if (!workload.week_start) return [];
-    const start = new Date(workload.week_start);
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      return d.toISOString().split("T")[0];
-    });
   };
 
   const pendingCount = teamSubs.filter(s => s.status === "submitted").length;
@@ -108,40 +93,6 @@ function MyTeam() {
             );
           })}
         </div>
-      )}
-
-      {workload.members.length > 0 && (
-        <>
-          <h2 style={{ margin: "28px 0 14px", fontSize: 15, fontWeight: 700, color: T.textPrimary, fontFamily: fontDisplay }}>Team Workload — This Week</h2>
-          <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ background: T.lavender }}>
-                  <th style={{ textAlign: "left", padding: "10px 14px", fontSize: 12, color: T.textSecondary, fontWeight: 700 }}>Team Member</th>
-                  {DAY_LABELS.map(d => (
-                    <th key={d} style={{ padding: "10px 6px", fontSize: 11, color: T.textSecondary, fontWeight: 700, textAlign: "center", width: 46 }}>{d}</th>
-                  ))}
-                  <th style={{ padding: "10px 10px", fontSize: 11, color: T.textSecondary, fontWeight: 700, textAlign: "center", width: 50 }}>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {workload.members.map(m => (
-                  <tr key={m.user_id} style={{ borderTop: `1px solid ${T.border}` }}>
-                    <td style={{ padding: "10px 14px", fontSize: 12.5, fontWeight: 600, color: T.textPrimary }}>{m.name}</td>
-                    {weekDates().map(d => (
-                      <td key={d} style={{ padding: "10px 6px", textAlign: "center", fontSize: 12, color: T.textSecondary }}>
-                        {m.by_day[d] || "–"}
-                      </td>
-                    ))}
-                    <td style={{ padding: "10px 10px", textAlign: "center", fontSize: 12.5, fontWeight: 700, color: T.primary }}>
-                      {m.total_hours}h
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
       )}
 
       {showTeamList && (

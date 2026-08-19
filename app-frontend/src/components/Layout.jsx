@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { ListTodo, Clock3, LayoutGrid, FileCheck2, BarChart3, Users, Tags, LogOut, Calendar, Layers } from "lucide-react";
+import { ListTodo, Clock3, LayoutGrid, FileCheck2, BarChart3, Users, Tags, LogOut } from "lucide-react";
 import { T, fontDisplay, fontBody, Avatar } from "../theme";
 import { API_URL } from "../config";
 
@@ -60,19 +60,14 @@ function Layout({ active, children }) {
   };
 
   const employeeItems = isCEO
-    ? [
-        { label: "Dashboard", icon: LayoutGrid, route: "/dashboard" },
-        { label: "Timeline", icon: Calendar, route: "/timeline" },
-        { label: "Epics", icon: Layers, route: "/epics" },
-      ]
+    ? [{ label: "Dashboard", icon: LayoutGrid, route: "/dashboard" }]
     : [
         { label: "Dashboard", icon: LayoutGrid, route: "/dashboard" },
         { label: "Log Time", icon: Clock3, route: "/log-time" },
         { label: "My Tasks", icon: ListTodo, route: "/my-tasks" },
         { label: "Submissions", icon: FileCheck2, route: "/submissions" },
-        { label: "Timeline", icon: Calendar, route: "/timeline" },
-        { label: "Epics", icon: Layers, route: "/epics" },
       ];
+      
   const managerItems = [
     { label: "Approvals", icon: FileCheck2, route: "/approvals" },
   ];
